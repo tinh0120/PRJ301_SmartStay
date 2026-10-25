@@ -6,11 +6,17 @@
  */
 
 :root {
+    --ss-dur-fast: 160ms;
+    --ss-dur-mid: 280ms;
+    --ss-dur-slow: 420ms;
     --ss-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --ss-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-    --ss-duration-fast: 150ms;
-    --ss-duration-normal: 250ms;
-    --ss-duration-slow: 400ms;
+    --ss-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* Aliases for R1 component compatibility */
+    --ss-duration-fast: 160ms;
+    --ss-duration-normal: 280ms;
+    --ss-duration-slow: 420ms;
 }
 
 /* ==========================================================================

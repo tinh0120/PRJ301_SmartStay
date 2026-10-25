@@ -9,12 +9,126 @@
  */
 
 /* ==========================================================================
-   0. SYSTEM FONT STACKS (Subtask J - local fallbacks before V1 @font-face)
+   0. OFFLINE TYPOGRAPHY SYSTEM (@font-face & Fallback Stacks)
    ========================================================================== */
+@font-face {
+    font-family: 'Newsreader';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('../fonts/Newsreader-Medium.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD, U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+1EA0-1EF9, U+20AB;
+}
+
+@font-face {
+    font-family: 'Newsreader';
+    font-style: italic;
+    font-weight: 500;
+    font-display: swap;
+    src: url('../fonts/Newsreader-MediumItalic.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD, U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+1EA0-1EF9, U+20AB;
+}
+
+@font-face {
+    font-family: 'Plus Jakarta Sans';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('../fonts/PlusJakartaSans-Regular.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD, U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+1EA0-1EF9, U+20AB;
+}
+
+@font-face {
+    font-family: 'Plus Jakarta Sans';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('../fonts/PlusJakartaSans-SemiBold.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD, U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+1EA0-1EF9, U+20AB;
+}
+
 :root {
-    --font-serif: Georgia, "Times New Roman", Palatino, serif;
-    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --font-serif: 'Newsreader', Georgia, 'Times New Roman', Palatino, serif;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
+    /* Radius Hierarchy (Discipline Scale) */
+    --ss-r-sm: 8px;      /* Micro: controls, form inputs, buttons, chips */
+    --ss-r-md: 14px;     /* Base: cards, table containers, filter bars, KPI cards */
+    --ss-r-lg: 22px;     /* Feature: Keycard vault, hero search, modal/drawer */
+    --ss-r-pill: 9999px; /* Pill: badges, tags, pills */
+
+    /* Luxury Elevation Shadows (Espresso-tinted) */
+    --ss-shadow-micro: 0 1px 2px rgba(43, 27, 18, 0.04);
+    --ss-shadow-base: 0 4px 16px -2px rgba(43, 27, 18, 0.06), 0 2px 6px -1px rgba(43, 27, 18, 0.03);
+    --ss-shadow-feature: 0 16px 36px -6px rgba(43, 27, 18, 0.12), 0 6px 14px -2px rgba(43, 27, 18, 0.06);
+    --ss-shadow-drawer: -4px 0 24px -2px rgba(43, 27, 18, 0.14);
+}
+
+/* ==========================================================================
+   TYPOGRAPHY UTILITIES (Type Scale & Weights: 400, 500 serif, 600 only)
+   ========================================================================== */
+.ss-type-hero {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--color-espresso, #2B1B12);
+}
+
+.ss-type-h2 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--color-espresso, #2B1B12);
+}
+
+.ss-type-h3 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.125rem, 2vw, 1.25rem);
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    color: var(--color-espresso, #2B1B12);
+}
+
+.ss-type-body {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    letter-spacing: 0;
+    color: var(--color-text-dark, #3A2A20);
+}
+
+.ss-type-caption {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    letter-spacing: 0.01em;
+    color: var(--color-text-muted, #6B5646);
+}
+
+.ss-type-price {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.ss-type-tabular {
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-type-mono {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 0.85em;
+    font-variant-numeric: tabular-nums;
 }
 
 /* ==========================================================================
@@ -83,8 +197,8 @@
 .flatpickr-day.endRange {
     background: var(--color-caramel, #9A5B2E) !important;
     border-color: var(--color-caramel, #9A5B2E) !important;
-    color: #ffffff !important;
-    font-weight: 700;
+    color: var(--color-milk, #FFFDF9) !important;
+    font-weight: 600;
 }
 
 .flatpickr-day.disabled,
@@ -110,7 +224,7 @@
 
 .ss-page-header__title {
     font-size: 1.5rem;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--color-espresso, #2B1B12);
     margin: 0;
     line-height: 1.2;
@@ -164,7 +278,7 @@
     font-size: 0.875rem;
     border: 1px solid var(--color-sand, #F0E4D3);
     border-radius: 20px;
-    background: #ffffff;
+    background: var(--color-milk, #FFFDF9);
     color: var(--color-text-dark, #3A2A20);
     outline: none;
     transition: border-color var(--ss-duration-fast, 150ms) ease;
@@ -238,7 +352,7 @@
 
 .ss-chip--active {
     background: var(--color-caramel, #9A5B2E) !important;
-    color: #ffffff !important;
+    color: var(--color-milk, #FFFDF9) !important;
     border-color: var(--color-caramel, #9A5B2E);
     font-weight: 600;
 }
@@ -544,4 +658,411 @@
     color: var(--status-neutral-text, #4A3525);
     background-color: var(--status-neutral-bg, #F5F2EB);
     border-color: var(--status-neutral-border, #E2DCD2);
+}
+
+/* ==========================================================================
+   12. SIGNATURE MOMENT SKELETON: ss-pin-vault (Digital Keycard Vault)
+   Dark espresso surface with gold latte hairline and responsive clamp() digits.
+   ========================================================================== */
+.ss-pin-vault {
+    background: var(--color-espresso, #2B1B12);
+    color: var(--color-cream, #FAF5EC);
+    border-radius: var(--ss-r-lg, 22px);
+    border: 1px solid rgba(217, 185, 145, 0.40); /* Gold latte hairline */
+    box-shadow: var(--ss-shadow-feature);
+    padding: 1.75rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.ss-pin-vault__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(217, 185, 145, 0.25);
+}
+
+.ss-pin-vault__title {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-latte, #D9B991);
+    margin: 0;
+}
+
+.ss-pin-vault__suite {
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--color-cream, #FAF5EC);
+    margin-bottom: 1rem;
+}
+
+.ss-pin-vault__display {
+    background: rgba(0, 0, 0, 0.28);
+    border-radius: var(--ss-r-sm, 8px);
+    border: 1px solid rgba(217, 185, 145, 0.22);
+    padding: 1rem 0.75rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.ss-pin-vault__digits {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 6vw, 2.25rem);
+    letter-spacing: clamp(0.12em, 2vw, 0.35em);
+    color: var(--color-latte, #D9B991);
+    line-height: 1;
+    white-space: nowrap;
+    display: block;
+    margin: 0 auto;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-pin-vault__actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.ss-pin-vault__meta {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    color: var(--color-latte, #D9B991);
+    border-top: 1px solid rgba(217, 185, 145, 0.2);
+    padding-top: 0.875rem;
+    margin-top: 0.875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+/* ==========================================================================
+   13. SIGNATURE MOMENT SKELETON: ss-slot (Slot Reservation Tile)
+   Modular slot tile for matrix calendar with clear state differentiation.
+   ========================================================================== */
+.ss-slot {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 0.5rem 0.65rem;
+    border-radius: var(--ss-r-sm, 8px);
+    border: 1px solid var(--color-sand, #F0E4D3);
+    background: var(--color-milk, #FFFDF9);
+    color: var(--color-text-dark, #3A2A20);
+    transition: all var(--ss-dur-fast, 160ms) var(--ss-ease-out);
+    text-align: left;
+    user-select: none;
+    position: relative;
+}
+
+.ss-slot__time {
+    font-size: 0.7188rem;
+    color: var(--color-text-muted, #6B5646);
+    line-height: 1.2;
+}
+
+.ss-slot__name {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0.15rem 0;
+}
+
+.ss-slot__price {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-slot--available {
+    cursor: pointer;
+}
+
+.ss-slot--available:hover {
+    background: var(--color-cream, #FAF5EC);
+    border-color: var(--color-latte, #D9B991);
+    transform: translateY(-1px);
+}
+
+.ss-slot--selected {
+    background: var(--color-caramel, #9A5B2E) !important;
+    border-color: var(--color-caramel, #9A5B2E) !important;
+    color: var(--color-milk, #FFFDF9) !important;
+    box-shadow: 0 2px 8px rgba(154, 91, 46, 0.28);
+}
+
+.ss-slot--selected .ss-slot__time,
+.ss-slot--selected .ss-slot__price {
+    color: var(--color-cream, #FAF5EC) !important;
+}
+
+.ss-slot--booked {
+    background: var(--color-sand, #F0E4D3);
+    border-color: transparent;
+    color: var(--color-text-muted, #6B5646);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* ==========================================================================
+   14. SIGNATURE MOMENT SKELETON: ss-combo-ladder (Multi-Slot Discount Ladder)
+   Tiered visual indicator for multi-slot combo savings (-10%, -20%, -50%).
+   ========================================================================== */
+.ss-combo-ladder {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+}
+
+.ss-combo-ladder__tier {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--ss-r-pill, 9999px);
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px dashed var(--color-latte, #D9B991);
+    background: var(--color-cream, #FAF5EC);
+    color: var(--color-cocoa, #4A3326);
+    transition: all var(--ss-dur-fast, 160ms) var(--ss-ease-out);
+}
+
+.ss-combo-ladder__tier--active {
+    background: var(--color-caramel, #9A5B2E) !important;
+    border: 1px solid var(--color-caramel, #9A5B2E) !important;
+    color: var(--color-milk, #FFFDF9) !important;
+    box-shadow: 0 2px 6px rgba(154, 91, 46, 0.25);
+}
+
+.ss-combo-ladder__discount {
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   15. SIGNATURE MOMENT SKELETON: ss-bookbar (Docked Mobile Reservation Bar)
+   Strictly mobile-only (<768px). Desktop uses right column summary card.
+   ========================================================================== */
+.ss-bookbar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-milk, #FFFDF9);
+    border-top: 1px solid rgba(154, 91, 46, 0.18);
+    box-shadow: 0 -4px 16px rgba(43, 27, 18, 0.08);
+    padding: 0.75rem 1rem;
+    z-index: 1020;
+}
+
+@media (max-width: 767.98px) {
+    .ss-bookbar {
+        display: block;
+    }
+}
+
+.ss-bookbar__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    max-width: 540px;
+    margin: 0 auto;
+}
+
+.ss-bookbar__summary {
+    display: flex;
+    flex-direction: column;
+}
+
+.ss-bookbar__count {
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #6B5646);
+}
+
+.ss-bookbar__price {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-espresso, #2B1B12);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.ss-bookbar__cta {
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   16. SIGNATURE MOMENT SKELETON: ss-drawer (Admin Sliding Inspection Drawer)
+   Sliding drawer for quick inspection of logs, records, and assignments.
+   ========================================================================== */
+.ss-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 480px;
+    background: var(--color-milk, #FFFDF9);
+    box-shadow: var(--ss-shadow-drawer);
+    z-index: 1050;
+    transform: translateX(100%);
+    transition: transform var(--ss-dur-mid, 280ms) var(--ss-ease-out);
+    display: flex;
+    flex-direction: column;
+}
+
+.ss-drawer--open {
+    transform: translateX(0);
+}
+
+.ss-drawer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--color-sand, #F0E4D3);
+    background: var(--color-cream, #FAF5EC);
+}
+
+.ss-drawer__title {
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-espresso, #2B1B12);
+    margin: 0;
+}
+
+.ss-drawer__close {
+    background: transparent;
+    border: none;
+    font-size: 1.25rem;
+    color: var(--color-text-muted, #6B5646);
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+}
+
+.ss-drawer__close:hover {
+    color: var(--color-espresso, #2B1B12);
+}
+
+.ss-drawer__body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+    color: var(--color-text-dark, #3A2A20);
+}
+
+.ss-drawer__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--color-sand, #F0E4D3);
+    background: var(--color-cream, #FAF5EC);
+}
+
+/* ==========================================================================
+   17. SIGNATURE MOMENT SKELETON: ss-reservation-card (Desktop Column Card)
+   Summary and checkout trigger docked in right column on desktop (Option A).
+   ========================================================================== */
+.ss-reservation-card {
+    position: sticky;
+    top: 1.5rem;
+    background: var(--color-milk, #FFFDF9);
+    border: 1px solid rgba(154, 91, 46, 0.16);
+    border-radius: var(--ss-r-md, 14px);
+    box-shadow: var(--ss-shadow-base);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.125rem;
+}
+
+.ss-reservation-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.875rem;
+    border-bottom: 1px solid var(--color-sand, #F0E4D3);
+}
+
+.ss-reservation-card__title {
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-espresso, #2B1B12);
+    margin: 0;
+}
+
+.ss-reservation-card__price-tag {
+    font-family: var(--font-sans);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-caramel, #9A5B2E);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-reservation-card__specs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.84rem;
+    color: var(--color-text-muted, #6B5646);
+    padding-bottom: 0.875rem;
+    border-bottom: 1px dashed var(--color-sand, #F0E4D3);
+}
+
+.ss-reservation-card__slots {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ss-reservation-card__total {
+    padding-top: 0.875rem;
+    border-top: 1px solid var(--color-sand, #F0E4D3);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.ss-reservation-card__total-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-dark, #3A2A20);
+}
+
+.ss-reservation-card__total-amount {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--color-espresso, #2B1B12);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-reservation-card__consent {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted, #6B5646);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.ss-reservation-card__action {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
