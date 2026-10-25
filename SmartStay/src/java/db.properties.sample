@@ -1,0 +1,9 @@
+# Copy this file to db.properties (same folder) and fill in your local values.
+# db.properties is git-ignored. Never commit real passwords.
+db.host=localhost
+db.port=1433
+db.name=SmartStayDB
+db.user=sa
+db.password=CHANGE_ME
+# Optional extra JDBC URL properties, e.g. encrypt=true;trustServerCertificate=true
+db.extra=

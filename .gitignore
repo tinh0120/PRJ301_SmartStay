@@ -1,0 +1,9 @@
+apache-tomcat-*/
+*.bak
+*.war
+node_modules/
+SmartStay/build/
+SmartStay/dist/
+SmartStay/nbproject/private/
+SmartStay/src/java/db.properties
+SmartStay/src/java/secrets.properties

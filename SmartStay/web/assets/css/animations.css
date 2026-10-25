@@ -1,0 +1,97 @@
+/**
+ * SmartStay - Luxury Boutique Animations & Micro-Interactions (animations.css)
+ *
+ * Provides performance-optimized GPU keyframes and transitions.
+ * Complies with WCAG prefers-reduced-motion: reduce.
+ */
+
+:root {
+    --ss-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ss-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --ss-duration-fast: 150ms;
+    --ss-duration-normal: 250ms;
+    --ss-duration-slow: 400ms;
+}
+
+/* ==========================================================================
+   1. KEYFRAMES
+   ========================================================================== */
+
+/* Subtle vertical fade-in entrance */
+@keyframes ssFadeUp {
+    0% {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Pulse animation for critical IoT alerts & red status indicators */
+@keyframes ssPulseCritical {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    }
+}
+
+/* Shimmer effect for skeleton loading cards */
+@keyframes ssShimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Toast entrance and exit */
+@keyframes ssToastIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.97);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ==========================================================================
+   2. UTILITY CLASSES
+   ========================================================================== */
+
+.ss-anim-fade-up {
+    animation: ssFadeUp var(--ss-duration-normal) var(--ss-ease-out) forwards;
+}
+
+.ss-pulse-critical {
+    animation: ssPulseCritical 2s infinite var(--ss-ease-in-out);
+}
+
+.ss-skeleton {
+    background: linear-gradient(90deg, var(--color-sand) 25%, var(--color-cream) 50%, var(--color-sand) 75%);
+    background-size: 200% 100%;
+    animation: ssShimmer 1.8s infinite;
+}
+
+/* ==========================================================================
+   3. ACCESSIBILITY: REDUCED MOTION
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

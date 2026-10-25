@@ -1,0 +1,547 @@
+/**
+ * SmartStay - Modern UI Components & Theme Foundations (modern-ui.css)
+ *
+ * Built on the 7 Warm Luxury tokens:
+ * --color-espresso: #2B1B12, --color-cocoa: #4A3326, --color-caramel: #9A5B2E,
+ * --color-latte: #D9B991, --color-cream: #FAF5EC, --color-sand: #F0E4D3, --color-milk: #FFFDF9.
+ *
+ * Implements Additive BEM shared components with the "ss-" namespace.
+ */
+
+/* ==========================================================================
+   0. SYSTEM FONT STACKS (Subtask J - local fallbacks before V1 @font-face)
+   ========================================================================== */
+:root {
+    --font-serif: Georgia, "Times New Roman", Palatino, serif;
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* ==========================================================================
+   1. FLATPICKR WARM BOUTIQUE THEME OVERRIDES
+   ========================================================================== */
+.flatpickr-calendar {
+    background: var(--color-milk, #FFFDF9) !important;
+    border: 1px solid rgba(154, 91, 46, 0.2) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 12px 32px -4px rgba(43, 27, 18, 0.12), 0 4px 12px -2px rgba(43, 27, 18, 0.06) !important;
+    font-family: var(--font-sans) !important;
+    color: var(--color-espresso, #2B1B12) !important;
+}
+
+.flatpickr-calendar .flatpickr-months {
+    background: var(--color-espresso, #2B1B12) !important;
+    color: var(--color-cream, #FAF5EC) !important;
+    border-top-left-radius: 11px;
+    border-top-right-radius: 11px;
+    padding: 6px 0;
+}
+
+.flatpickr-calendar .flatpickr-month {
+    color: var(--color-cream, #FAF5EC) !important;
+    fill: var(--color-cream, #FAF5EC) !important;
+}
+
+.flatpickr-calendar .flatpickr-current-month {
+    color: var(--color-cream, #FAF5EC) !important;
+    font-weight: 600;
+}
+
+.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowUp:after {
+    border-bottom-color: var(--color-cream, #FAF5EC) !important;
+}
+
+.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowDown:after {
+    border-top-color: var(--color-cream, #FAF5EC) !important;
+}
+
+.flatpickr-calendar span.flatpickr-weekday {
+    background: transparent !important;
+    color: var(--color-latte, #D9B991) !important;
+    font-weight: 600;
+    font-size: 0.78rem;
+}
+
+.flatpickr-day {
+    color: var(--color-espresso, #2B1B12) !important;
+    border-radius: 8px !important;
+    font-weight: 500;
+}
+
+.flatpickr-day:hover {
+    background: var(--color-sand, #F0E4D3) !important;
+    border-color: var(--color-sand, #F0E4D3) !important;
+}
+
+.flatpickr-day.today {
+    border-color: var(--color-caramel, #9A5B2E) !important;
+    color: var(--color-caramel, #9A5B2E) !important;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+    background: var(--color-caramel, #9A5B2E) !important;
+    border-color: var(--color-caramel, #9A5B2E) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+.flatpickr-day.disabled,
+.flatpickr-day.disabled:hover {
+    color: #c4b5a5 !important;
+}
+
+/* ==========================================================================
+   2. SHARED BEM COMPONENT: ss-page-header
+   Standard admin page header containing a prominent title, subtitle,
+   and exactly ONE primary action button.
+   ========================================================================== */
+.ss-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-sand, #F0E4D3);
+}
+
+.ss-page-header__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-espresso, #2B1B12);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.ss-page-header__subtitle {
+    font-size: 0.875rem;
+    color: var(--color-text-muted, #6B5646);
+    margin-top: 0.25rem;
+    margin-bottom: 0;
+}
+
+.ss-page-header__action {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ==========================================================================
+   3. SHARED BEM COMPONENT: ss-toolbar
+   Toolbar with search box, quick filter chips, and collapsible "More filters".
+   ========================================================================== */
+.ss-toolbar {
+    background: var(--color-milk, #FFFDF9);
+    border: 1px solid rgba(154, 91, 46, 0.16);
+    border-radius: 12px;
+    padding: 0.875rem 1rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ss-toolbar__main {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.ss-toolbar__search {
+    position: relative;
+    flex-grow: 1;
+    min-width: 220px;
+    max-width: 380px;
+}
+
+.ss-toolbar__search-input {
+    width: 100%;
+    padding: 0.45rem 0.75rem 0.45rem 2.25rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--color-sand, #F0E4D3);
+    border-radius: 20px;
+    background: #ffffff;
+    color: var(--color-text-dark, #3A2A20);
+    outline: none;
+    transition: border-color var(--ss-duration-fast, 150ms) ease;
+}
+
+.ss-toolbar__search-input:focus {
+    border-color: var(--color-caramel, #9A5B2E);
+}
+
+.ss-toolbar__search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted, #6B5646);
+    pointer-events: none;
+    font-size: 0.875rem;
+}
+
+.ss-toolbar__chips {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.ss-toolbar__more-toggle {
+    margin-left: auto;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-caramel, #9A5B2E);
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.5rem;
+}
+
+.ss-toolbar__collapse {
+    border-top: 1px dashed var(--color-sand, #F0E4D3);
+    padding-top: 0.75rem;
+}
+
+/* ==========================================================================
+   4. SHARED BEM COMPONENT: ss-chip
+   Interactive filter pill for rapid multi-dimensional filtering.
+   ========================================================================== */
+.ss-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    border-radius: 9999px;
+    background: var(--color-sand, #F0E4D3);
+    color: var(--color-espresso, #2B1B12);
+    border: 1px solid transparent;
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none;
+    transition: all var(--ss-duration-fast, 150ms) ease;
+}
+
+.ss-chip:hover {
+    background: #e4d5c0;
+    color: var(--color-espresso, #2B1B12);
+}
+
+.ss-chip--active {
+    background: var(--color-caramel, #9A5B2E) !important;
+    color: #ffffff !important;
+    border-color: var(--color-caramel, #9A5B2E);
+    font-weight: 600;
+}
+
+.ss-chip__remove {
+    margin-left: 0.2rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    opacity: 0.75;
+}
+
+.ss-chip__remove:hover {
+    opacity: 1;
+}
+
+/* ==========================================================================
+   5. SHARED BEM COMPONENT: ss-table
+   High-density operational table: thin dividers, soft hover, sticky header,
+   no heavy zebra striping, and no nested max-height scrollbar.
+   ========================================================================== */
+.ss-table-container {
+    background: var(--color-milk, #FFFDF9);
+    border: 1px solid rgba(154, 91, 46, 0.16);
+    border-radius: 12px;
+    overflow-x: auto;
+    box-shadow: 0 4px 12px -2px rgba(43, 27, 18, 0.04);
+}
+
+.ss-table {
+    width: 100%;
+    margin-bottom: 0;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    color: var(--color-text-dark, #3A2A20);
+}
+
+.ss-table th {
+    background: var(--color-cream, #FAF5EC);
+    color: var(--color-espresso, #2B1B12);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    text-transform: none;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(154, 91, 46, 0.18);
+    white-space: nowrap;
+}
+
+.ss-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(240, 228, 211, 0.8);
+    vertical-align: middle;
+}
+
+.ss-table tbody tr {
+    transition: background-color var(--ss-duration-fast, 150ms) ease;
+}
+
+.ss-table tbody tr:hover {
+    background-color: rgba(240, 228, 211, 0.35);
+}
+
+.ss-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ==========================================================================
+   6. SHARED BEM COMPONENT: ss-status-dot
+   Compact indicator dot representing system or hardware status.
+   ========================================================================== */
+.ss-status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background-color: var(--status-neutral, #6B7280);
+}
+
+.ss-status-dot--ok,
+.ss-status-dot--online,
+.ss-status-dot--success {
+    background-color: var(--status-success, #16A34A);
+}
+
+.ss-status-dot--warn,
+.ss-status-dot--warning {
+    background-color: var(--status-warning, #D97706);
+}
+
+.ss-status-dot--danger,
+.ss-status-dot--fault,
+.ss-status-dot--offline {
+    background-color: var(--status-danger, #DC2626);
+}
+
+.ss-status-dot--muted {
+    background-color: #9ca3af;
+}
+
+/* ==========================================================================
+   7. SHARED BEM COMPONENT: ss-row-menu
+   Bootstrap dropdown menu for secondary actions ("⋯").
+   Destructive actions are separated with a divider and colored red.
+   ========================================================================== */
+.ss-row-menu .btn-trigger {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--color-cocoa, #4A3326);
+    border-radius: 6px;
+    padding: 0.2rem 0.5rem;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.ss-row-menu .btn-trigger:hover,
+.ss-row-menu .btn-trigger:focus {
+    background: var(--color-sand, #F0E4D3);
+    border-color: var(--color-latte, #D9B991);
+}
+
+.ss-row-menu .dropdown-menu {
+    border-radius: 8px;
+    border: 1px solid rgba(154, 91, 46, 0.16);
+    box-shadow: 0 10px 24px -2px rgba(43, 27, 18, 0.12);
+    padding: 0.35rem 0;
+    font-size: 0.8125rem;
+}
+
+.ss-row-menu .dropdown-item {
+    padding: 0.4rem 1rem;
+    color: var(--color-espresso, #2B1B12);
+}
+
+.ss-row-menu .dropdown-item:hover {
+    background-color: var(--color-sand, #F0E4D3);
+}
+
+.ss-row-menu .dropdown-item--destructive {
+    color: var(--status-danger-text, #991B1B) !important;
+}
+
+.ss-row-menu .dropdown-item--destructive:hover {
+    background-color: var(--status-danger-bg, #FEE2E2) !important;
+}
+
+/* ==========================================================================
+   8. SHARED BEM COMPONENT: ss-empty
+   Empty state display with icon, friendly headline, and clear action.
+   ========================================================================== */
+.ss-empty {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--color-text-muted, #6B5646);
+}
+
+.ss-empty__icon {
+    font-size: 2.5rem;
+    color: var(--color-latte, #D9B991);
+    margin-bottom: 0.75rem;
+    display: inline-block;
+}
+
+.ss-empty__title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-espresso, #2B1B12);
+    margin-bottom: 0.35rem;
+}
+
+.ss-empty__desc {
+    font-size: 0.875rem;
+    max-width: 420px;
+    margin: 0 auto 1.25rem;
+}
+
+/* ==========================================================================
+   9. SHARED BEM COMPONENT: ss-toast
+   Toast feedback notification after POST actions.
+   ========================================================================== */
+.ss-toast {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+}
+
+.ss-toast--success {
+    color: var(--status-success-text, #2D5A27);
+    background-color: var(--status-success-bg, #E8F0E6);
+    border-color: var(--status-success-border, #C4D7C7);
+}
+
+.ss-toast--danger,
+.ss-toast--error {
+    color: var(--status-danger-text, #991B1B);
+    background-color: var(--status-danger-bg, #FEE2E2);
+    border-color: var(--status-danger-border, #FECACA);
+}
+
+/* ==========================================================================
+   10. SHARED BEM COMPONENT: ss-tabs
+   Page-level underline tabs with active caramel indicator.
+   ========================================================================== */
+.ss-tabs {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    border-bottom: 2px solid var(--color-sand, #F0E4D3);
+    margin-bottom: 1.5rem;
+    padding: 0;
+    list-style: none;
+}
+
+.ss-tabs__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.65rem 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-muted, #6B5646);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all var(--ss-duration-fast, 150ms) ease;
+}
+
+.ss-tabs__link:hover {
+    color: var(--color-espresso, #2B1B12);
+}
+
+.ss-tabs__link--active {
+    color: var(--color-caramel, #9A5B2E) !important;
+    border-bottom-color: var(--color-caramel, #9A5B2E) !important;
+}
+
+/* ==========================================================================
+   11. SHARED BEM COMPONENT: ss-badge (Semantic Status & Severity Triad)
+   Strictly implements the 3-property triad: color, background, and border.
+   ========================================================================== */
+.ss-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.22rem 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+/* Severity modifiers */
+.ss-badge--low {
+    color: var(--sev-low-text, #374151);
+    background-color: var(--sev-low-bg, #F3F4F6);
+    border-color: var(--sev-low-border, #E5E7EB);
+}
+
+.ss-badge--medium {
+    color: var(--sev-medium-text, #92400E);
+    background-color: var(--sev-medium-bg, #FEF3C7);
+    border-color: var(--sev-medium-border, #FDE68A);
+}
+
+.ss-badge--high {
+    color: var(--sev-high-text, #9A3412);
+    background-color: var(--sev-high-bg, #FFEDD5);
+    border-color: var(--sev-high-border, #FED7AA);
+}
+
+.ss-badge--critical {
+    color: var(--sev-critical-text, #991B1B);
+    background-color: var(--sev-critical-bg, #FEE2E2);
+    border-color: var(--sev-critical-border, #FECACA);
+}
+
+/* Status modifiers */
+.ss-badge--success {
+    color: var(--status-success-text, #2D5A27);
+    background-color: var(--status-success-bg, #E8F0E6);
+    border-color: var(--status-success-border, #C4D7C7);
+}
+
+.ss-badge--warning {
+    color: var(--status-warning-text, #92400E);
+    background-color: var(--status-warning-bg, #FEF3C7);
+    border-color: var(--status-warning-border, #FDE68A);
+}
+
+.ss-badge--danger {
+    color: var(--status-danger-text, #991B1B);
+    background-color: var(--status-danger-bg, #FEE2E2);
+    border-color: var(--status-danger-border, #FECACA);
+}
+
+.ss-badge--neutral {
+    color: var(--status-neutral-text, #4A3525);
+    background-color: var(--status-neutral-bg, #F5F2EB);
+    border-color: var(--status-neutral-border, #E2DCD2);
+}

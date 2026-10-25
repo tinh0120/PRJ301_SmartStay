@@ -1,0 +1,11 @@
+build/
+dist/
+nbproject/private/
+src/java/db.properties
+src/java/secrets.properties
+uploads/
+*.class
+*.war
+*.bak
+node_modules/
+
