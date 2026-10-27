@@ -2,23 +2,24 @@
 <%@ taglib prefix="e" uri="/WEB-INF/tld/smartstay.tld" %>
 <%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
 <t:layout title="Home" active="home" fullWidth="true">
-    <section class="hero-full" aria-labelledby="hero-title">
+    <%-- V2: the hero opens with what is unique here: rooms booked by the slot, opened with your own PIN. --%>
+    <section class="hero-full ss-home-hero" aria-labelledby="hero-title">
         <div class="container hero-inner">
             <div class="hero-content">
-                <p class="hero-eyebrow">Self check-in homestay</p>
-                <h1 class="hero-title" id="hero-title">
-                    Welcome to <span class="hero-title-brand">Tini SmartStay</span>
+                <h1 class="hero-title ss-serif" id="hero-title">
+                    Book a room for the hours you need. Open the door with your own PIN.
                 </h1>
                 <p class="hero-lead">
-                    Book a themed room by time slot, pay online, and receive your main-door PIN instantly.
+                    Pick a morning, afternoon, evening or overnight slot in Cao L&atilde;nh, pay by bank transfer,
+                    and get a 6-digit door code right away. No front desk, no keys.
                 </p>
                 <div class="hero-actions">
-                    <a href="${pageContext.request.contextPath}/rooms" class="btn btn-primary btn-lg px-4 shadow-sm">Browse Rooms</a>
-                    <a href="#daily-slots" class="btn btn-hero-ghost btn-lg px-4 shadow-sm">View Time Slots</a>
+                    <a href="${pageContext.request.contextPath}/rooms" class="btn btn-primary btn-lg px-4 shadow-sm">Browse rooms</a>
+                    <a href="#daily-slots" class="btn btn-hero-ghost btn-lg px-4">See the time slots</a>
                 </div>
                 <ul class="hero-points">
-                    <li>Automated PIN access</li>
-                    <li>Online checkout</li>
+                    <li>Door PIN right after payment</li>
+                    <li>Free cancellation up to 48 hours before</li>
                     <li>Up to 50% off a full day</li>
                 </ul>
             </div>
@@ -27,14 +28,14 @@
 
     <!-- Agoda-style Sticky / Floating Search Card on Home -->
     <div class="container position-relative" style="margin-top: -45px; z-index: 20;">
-        <div class="card border-0 shadow-lg rounded-4 p-3 p-md-4 agoda-search-box">
+        <div class="card border-0 shadow-lg rounded-4 p-3 p-md-4 agoda-search-box ss-home-search">
             <form action="${pageContext.request.contextPath}/rooms" method="get" class="search-form-grid search-grid-home">
                 <input type="hidden" id="homeHiddenWeekStart" name="weekStart" value="${today}">
 
                 <!-- 1. Date Picker (Weekly Block Support) -->
                 <div class="search-field">
                     <label for="homeAgodaDateInput" class="search-label">
-                        <i class="bi bi-calendar-event me-1 text-caramel"></i>Check-in Date
+                        <i class="bi bi-calendar-event me-1 text-caramel"></i>Check-in date
                     </label>
                     <div class="position-relative search-control">
                         <input type="text" id="homeAgodaDateInput" name="date" class="form-control rounded-pill px-3 py-2 fw-semibold agoda-input"
@@ -46,36 +47,26 @@
 
                 <!-- 2. Slot Multi-Selector (4 equal buttons in 1 row) -->
                 <div class="search-field">
-                    <label class="search-label">
-                        <i class="bi bi-clock-history me-1 text-caramel"></i>Select Time Slots (Multi-select)
-                    </label>
-                    <div class="slot-picker-grid search-control">
+                    <span class="search-label" id="homeSlotsLabel">
+                        <i class="bi bi-clock-history me-1 text-caramel"></i>Time slots
+                    </span>
+                    <div class="slot-picker-grid search-control" role="group" aria-labelledby="homeSlotsLabel" data-slot-group>
                         <label class="slot-pill-check">
                             <input type="checkbox" name="slots" value="S1">
-                            <span class="slot-pill-btn">
-                                <span class="slot-badge-code">S1</span>
-                                <span class="slot-time-label">06:00 &ndash; 12:00</span>
-                            </span>
+                            <span class="slot-pill-btn"><span class="slot-time-label">Morning</span></span>
                         </label>
                         <label class="slot-pill-check">
                             <input type="checkbox" name="slots" value="S2">
-                            <span class="slot-pill-btn">
-                                <span class="slot-badge-code">S2</span>
-                                <span class="slot-time-label">12:00 &ndash; 18:00</span>
-                            </span>
+                            <span class="slot-pill-btn"><span class="slot-time-label">Afternoon</span></span>
                         </label>
                         <label class="slot-pill-check">
                             <input type="checkbox" name="slots" value="S3">
-                            <span class="slot-pill-btn">
-                                <span class="slot-badge-code">S3</span>
-                                <span class="slot-time-label">18:00 &ndash; 23:00</span>
-                            </span>
+                            <span class="slot-pill-btn"><span class="slot-time-label">Evening</span></span>
                         </label>
                         <label class="slot-pill-check">
                             <input type="checkbox" name="slots" value="S4">
                             <span class="slot-pill-btn">
-                                <i class="bi bi-moon-stars-fill slot-moon-icon"></i>
-                                <span class="slot-badge-code">S4</span>
+                                <i class="bi bi-moon-stars-fill slot-moon-icon" aria-hidden="true"></i>
                                 <span class="slot-time-label">Overnight</span>
                             </span>
                         </label>
@@ -85,11 +76,11 @@
                 <!-- 3. Capacity -->
                 <div class="search-field">
                     <label for="homeCapacitySelect" class="search-label">
-                        <i class="bi bi-people me-1 text-caramel"></i>Capacity
+                        <i class="bi bi-people me-1 text-caramel"></i>Guests
                     </label>
                     <select id="homeCapacitySelect" name="minCapacity" class="form-select rounded-pill px-3 py-2 fw-semibold agoda-input search-control">
-                        <option value="">All rooms</option>
-                        <option value="2">2 guests</option>
+                        <option value="">Any size</option>
+                        <option value="2">2+ guests</option>
                         <option value="3">3+ guests</option>
                     </select>
                 </div>
@@ -98,7 +89,7 @@
                 <div class="search-field">
                     <button type="submit" class="btn btn-primary rounded-pill w-100 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm agoda-search-btn search-control">
                         <i class="bi bi-search"></i>
-                        <span>Search Rooms</span>
+                        <span>Search rooms</span>
                     </button>
                 </div>
             </form>
@@ -114,23 +105,20 @@
         <section id="daily-slots" class="daily-slots-section section-anchor">
             <div class="row g-4 mt-1">
                 <div class="col-12 text-center mb-2">
-                    <div class="slots-eyebrow-wrap">
-                        <span class="slots-eyebrow">BOOKING SCHEDULE</span>
-                    </div>
-                    <h2 class="slots-title fw-bold mb-2">Daily Time Slots</h2>
-                    <p class="slots-note text-muted fst-italic mb-2">
-                        Exact times vary by room. See each room page for its schedule.
+                    <h2 class="slots-title ss-serif mb-2">Four slots a day</h2>
+                    <p class="slots-note text-muted mb-2">
+                        Exact times vary by room; each room page shows its own schedule.
                     </p>
-                    <div class="slots-discount-pill d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill">
-                        <span class="fw-semibold">Multi-slot discounts:</span>
-                        <span>10% off for 2 consecutive slots &bull; 20% off for 3 consecutive slots &bull; 50% off for all 4 slots</span>
+                    <div class="slots-discount-pill d-inline-flex align-items-center flex-wrap justify-content-center gap-2 px-3 py-1 rounded-pill">
+                        <span class="fw-semibold">Book slots back to back and save:</span>
+                        <span>2 slots 10% off, 3 slots 20% off, the full day 50% off</span>
                     </div>
                 </div>
                 <div class="col-12 col-sm-6 col-lg-3">
                     <div class="slot-overview-card h-100">
                         <div class="card-body p-4 d-flex flex-column">
                             <span class="slot-badge mb-3">Slot 1</span>
-                            <h3 class="slot-name fw-bold mb-2">Morning</h3>
+                            <h3 class="slot-name ss-serif mb-2">Morning</h3>
                             <p class="slot-desc mb-0">Great for morning meetings, quiet work sessions, or quick relaxation.</p>
                         </div>
                     </div>
@@ -139,7 +127,7 @@
                     <div class="slot-overview-card h-100">
                         <div class="card-body p-4 d-flex flex-column">
                             <span class="slot-badge mb-3">Slot 2</span>
-                            <h3 class="slot-name fw-bold mb-2">Afternoon</h3>
+                            <h3 class="slot-name ss-serif mb-2">Afternoon</h3>
                             <p class="slot-desc mb-0">Ideal for afternoon focus, creative study, or mid-day rest.</p>
                         </div>
                     </div>
@@ -148,7 +136,7 @@
                     <div class="slot-overview-card h-100">
                         <div class="card-body p-4 d-flex flex-column">
                             <span class="slot-badge mb-3">Slot 3</span>
-                            <h3 class="slot-name fw-bold mb-2">Evening</h3>
+                            <h3 class="slot-name ss-serif mb-2">Evening</h3>
                             <p class="slot-desc mb-0">Perfect for casual dining, evening wind-down, and relaxation.</p>
                         </div>
                     </div>
@@ -157,7 +145,7 @@
                     <div class="slot-overview-card h-100">
                         <div class="card-body p-4 d-flex flex-column">
                             <span class="slot-badge mb-3">Slot 4</span>
-                            <h3 class="slot-name fw-bold mb-2">Overnight</h3>
+                            <h3 class="slot-name ss-serif mb-2">Overnight</h3>
                             <p class="slot-desc mb-0">Comfortable night sleep with automated access PIN and quiet atmosphere.</p>
                         </div>
                     </div>
@@ -172,23 +160,21 @@
             <!-- Top Row: Brand Story & Quote -->
             <div class="row align-items-center g-4 g-lg-5 mb-5">
                 <div class="col-lg-7">
-                    <div class="about-eyebrow-wrap">
-                        <span class="about-eyebrow">ABOUT SMARTSTAY</span>
-                    </div>
-                    <h2 class="about-title" id="about-heading">
-                        Stay Smart. <span class="about-title-accent">Stay Safe.</span>
+                    <h2 class="about-title ss-serif" id="about-heading">
+                        A quiet homestay that runs itself
                     </h2>
-                    <p class="about-lead">
-                        Tucked into a peaceful sanctuary at 8 QL30, Cao Lanh, Dong Thap, Vietnam &mdash; automated smart self check-in, serene boutique comfort, yet completely away from the noise.
+                    <p class="about-lead ss-measure">
+                        Six themed rooms at 8 QL30, Cao L&atilde;nh, &Dstrok;&ocirc;ng Th&aacute;p. You check in with your own
+                        door code, and the rooms stay calm and away from the street noise.
                     </p>
                 </div>
                 <div class="col-lg-5">
                     <div class="about-quote-box">
-                        <blockquote class="about-quote-text">
+                        <blockquote class="about-quote-text ss-serif">
                             &ldquo;Every room has its own mood, from warm butter tones to fresh and breezy. Guests don&rsquo;t just sleep here &mdash; they experience something.&rdquo;
                         </blockquote>
                         <div class="about-quote-author">
-                            &mdash; SMARTSTAY, CAO L&Atilde;NH
+                            Tini SmartStay, Cao L&atilde;nh
                         </div>
                     </div>
                 </div>
@@ -206,9 +192,8 @@
                                     <circle cx="12" cy="10" r="3"></circle>
                                 </svg>
                             </div>
-                            <span class="about-card-num">01</span>
                         </div>
-                        <h3 class="about-card-title">Prime Cao L&atilde;nh Location</h3>
+                        <h3 class="about-card-title ss-serif">Easy to reach in Cao L&atilde;nh</h3>
                         <p class="about-card-desc">
                             Nestled at 8 QL30, Cao L&atilde;nh, &Dstrok;&ograve;ng Th&aacute;p, conveniently accessible yet tucked away in a quiet, peaceful sanctuary.
                         </p>
@@ -225,9 +210,8 @@
                                     <circle cx="7.5" cy="16.5" r="4.5"/>
                                 </svg>
                             </div>
-                            <span class="about-card-num">02</span>
                         </div>
-                        <h3 class="about-card-title">Self Check-In 24/7</h3>
+                        <h3 class="about-card-title ss-serif">Self check-in, day or night</h3>
                         <p class="about-card-desc">
                             Smart lock system lets you arrive on your own schedule &mdash; no waiting, no front desk, total freedom.
                         </p>
@@ -247,9 +231,8 @@
                                     <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.4-.4-.8-.4-1.3 0-1.1.9-2 2-2h2.3c3.8 0 6.9-3.1 6.9-6.9 0-5-4.4-9.1-10-9.1z"></path>
                                 </svg>
                             </div>
-                            <span class="about-card-num">03</span>
                         </div>
-                        <h3 class="about-card-title">Curated Room Concepts</h3>
+                        <h3 class="about-card-title ss-serif">A different mood in every room</h3>
                         <p class="about-card-desc">
                             Every room has its own mood &mdash; from warm butter tones and vanilla calm to fresh and breezy suites. Stay differently each time.
                         </p>
@@ -265,16 +248,13 @@
             <!-- Header Row -->
             <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3 mb-lg-4">
                 <div>
-                    <div class="showcase-eyebrow-wrap">
-                        <span class="showcase-eyebrow">OUR ROOMS</span>
-                    </div>
-                    <h2 class="showcase-title mb-0" id="showcase-heading">
-                        6 Sweet <span class="showcase-title-accent">Spaces</span>
+                    <h2 class="showcase-title ss-serif mb-0" id="showcase-heading">
+                        Six rooms, six moods
                     </h2>
                 </div>
                 <div>
                     <a href="${pageContext.request.contextPath}/rooms" class="btn btn-showcase-view-all">
-                        View All Rooms <span class="view-all-arrow">&rarr;</span>
+                        View all rooms
                     </a>
                 </div>
             </div>
@@ -297,25 +277,24 @@
                                     <div class="showcase-card-img-wrap">
                                         <img src="${pageContext.request.contextPath}/${room.resolvedImageUrl}"
                                              alt="${e:esc(room.displayTitle)} main photo"
-                                             class="showcase-card-img"
+                                             class="showcase-card-img" width="768" height="576"
                                              loading="lazy"
                                              onerror="this.onerror=null; this.src='${pageContext.request.contextPath}/assets/images/branding/hero_img2.jpg';">
-                                        <span class="showcase-card-tag">${e:esc(room.tag)}</span>
+                                        <%-- V4: the tag repeated the room name shown right below; removed --%>
                                         <span class="showcase-card-watermark">${e:esc(room.roomNumber)}</span>
                                     </div>
                                     <div class="showcase-card-body">
-                                        <h3 class="showcase-card-title">${e:esc(room.displayTitle)}</h3>
+                                        <h3 class="showcase-card-title ss-serif">${e:esc(room.displayTitle)}</h3>
                                         <p class="showcase-card-caption">${e:esc(room.caption)}</p>
-                                        <div class="showcase-card-meta">
-                                            <span class="meta-item">Floor ${room.floorNumber}</span>
-                                            <span class="meta-divider">&middot;</span>
-                                            <span class="meta-item">Capacity: ${room.capacity} guests</span>
-                                        </div>
+                                        <ul class="showcase-card-meta ss-facts">
+                                            <li><i class="bi bi-building" aria-hidden="true"></i>Floor ${room.floorNumber}</li>
+                                            <li><i class="bi bi-people" aria-hidden="true"></i>Up to ${room.capacity} guests</li>
+                                        </ul>
                                         <div class="showcase-card-footer">
                                             <div class="showcase-card-pricing">
                                                 <div class="pricing-rate-3h">
                                                     <span class="rate-value">${e:money(room.minPrice)}</span>
-                                                    <span class="rate-unit">/ 3 hours</span>
+                                                    <span class="rate-unit">/ slot</span>
                                                 </div>
                                                 <div class="pricing-rate-overnight">
                                                     <span class="rate-value-sub">${e:money(room.overnightPrice)}</span>
@@ -458,4 +437,5 @@
             setTimeout(updateUI, 120);
         })();
     </script>
+    <script src="${pageContext.request.contextPath}/assets/js/room-search.js"></script>
 </t:layout>

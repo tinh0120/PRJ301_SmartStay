@@ -4,34 +4,12 @@
 <t:layout title="${threshold.thresholdId > 0 ? 'Edit Threshold' : 'New Threshold'}" active="thresholds">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <nav aria-label="breadcrumb" class="mb-3">
-                <ol class="breadcrumb boutique-breadcrumb m-0">
-                    <li class="breadcrumb-item">
-                        <a href="${pageContext.request.contextPath}/admin/dashboard" class="boutique-breadcrumb-link">
-                            <i class="bi bi-house-door me-1"></i>Dashboard
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="${pageContext.request.contextPath}/admin/thresholds" class="boutique-breadcrumb-link">
-                            Thresholds
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">${threshold.thresholdId > 0 ? 'Edit Threshold' : 'New Threshold'}</li>
-                </ol>
-            </nav>
-
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="ss-page-header">
                 <div>
-                    <h1 class="h2 mb-1">${threshold.thresholdId > 0 ? 'Edit alert threshold' : 'New alert threshold'}</h1>
-                    <p class="text-muted small mb-0">
-                        ${threshold.thresholdId > 0 ? 'Update trigger evaluation parameters and alert classification' : 'Define metric trigger conditions to automatically generate operational alerts'}
-                    </p>
+                    <h1 class="ss-page-header__title">${threshold.thresholdId > 0 ? 'Edit alert rule' : 'New alert rule'}</h1>
+                    <p class="ss-page-header__subtitle">Choose the sensor reading, the limit and how serious the alert is.</p>
                 </div>
-                <div>
-                    <a href="${pageContext.request.contextPath}/admin/thresholds" class="btn btn-outline-secondary btn-sm">
-                        &larr; Back to thresholds
-                    </a>
-                </div>
+                <a href="${pageContext.request.contextPath}/admin/thresholds" class="btn btn-outline-soft btn-sm"><i class="bi bi-chevron-left" aria-hidden="true"></i> Alert rules</a>
             </div>
 
             <t:if test="${not empty errors['general']}">

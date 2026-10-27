@@ -30,7 +30,7 @@
         </div>
 
         <!-- Main Checkout Single Card -->
-        <div class="mockpay-card">
+        <div class="mockpay-card ss-checkout">
 
             <!-- Slim Top Bar -->
             <div class="mockpay-topbar d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -40,18 +40,14 @@
                         <i class="bi bi-patch-check-fill me-1 text-primary"></i>Automated Gateway
                     </span>
                 </div>
-                <div class="d-flex align-items-center">
-                    <span class="badge border fw-semibold d-inline-flex align-items-center gap-1" style="background-color: #F0FDF4; border-color: #86EFAC; color: #166534; font-size: 0.75rem;">
-                        <i class="bi bi-shield-fill-check text-success"></i> 256-Bit SSL Encrypted
-                    </span>
-                </div>
+                <%-- V4: the "256-Bit SSL Encrypted" badge was removed: decorative, off-palette, and not true for the local sandbox --%>
             </div>
 
             <!-- Error State: Missing or Invalid Payment Session -->
             <t:if test="${empty orderCode || empty bookingCode}">
                 <div class="p-5 text-center">
                     <i class="bi bi-exclamation-circle text-danger fs-1 mb-3 d-block"></i>
-                    <h2 class="h5 fw-bold text-dark">Payment Session No Longer Valid</h2>
+                    <h2 class="h5 text-dark">This payment link has expired</h2>
                     <p class="text-muted small mb-4">This transaction link has either expired, already completed, or is invalid.</p>
                     <a href="${pageContext.request.contextPath}/guest/bookings" class="btn btn-outline-soft px-4">
                         <i class="bi bi-arrow-left me-1"></i>Back to My Bookings
@@ -61,7 +57,7 @@
 
             <t:if test="${not empty orderCode && not empty bookingCode}">
                 <!-- Mobile Sticky Header: Amount + Countdown -->
-                <div class="mobile-checkout-sticky d-md-none">
+                <div class="mobile-checkout-sticky d-md-none ss-paybar-m" data-ss-demo-avoid>
                     <div>
                         <div class="mockpay-amount-label mb-0" style="font-size:0.68rem;">Amount Due</div>
                         <div class="fw-bold" style="color:#2B1B12; font-size:1.15rem;">${e:money(amount)}</div>
@@ -90,7 +86,7 @@
                             </div>
 
                             <!-- QR Box with Authentic VietQR & Napas Bar -->
-                            <div class="mockpay-qr-box mb-3 ${isExpired ? 'mockpay-qr-expired' : ''}" id="qrBox">
+                            <div class="mockpay-qr-box ss-qr-card mb-3 ${isExpired ? 'mockpay-qr-expired' : ''}" id="qrBox">
                                 <!-- VietQR Header Bar -->
                                 <div class="d-flex justify-content-between align-items-center px-1 pb-2 mb-2 border-bottom">
                                     <div class="d-flex align-items-center">
@@ -104,7 +100,7 @@
                                 <!-- Authentic VietQR Image with Laser Scan Line -->
                                 <div class="mockpay-qr-wrapper">
                                     <div class="mockpay-qr-laser"></div>
-                                    <img src="${pageContext.request.contextPath}/assets/images/qr/qranh.jpg" alt="VietQR SmartStay Payment" class="img-fluid rounded" style="max-width: 220px; width: 100%; height: auto; display: block; margin: 0 auto; object-fit: contain;" onerror="this.onerror=null; this.src='${pageContext.request.contextPath}/assets/images/branding/hero_img2.jpg';">
+                                    <img src="${pageContext.request.contextPath}/assets/images/qr/qranh.jpg" alt="VietQR SmartStay Payment" class="img-fluid rounded" width="340" height="354" style="max-width: 220px; width: 100%; height: auto; display: block; margin: 0 auto; object-fit: contain;" onerror="this.onerror=null; this.src='${pageContext.request.contextPath}/assets/images/branding/hero_img2.jpg';">
                                 </div>
 
                                 <!-- Download QR Button (English only) -->
@@ -117,7 +113,7 @@
 
                             <!-- VietQR & Banking Guidance -->
                             <div class="text-muted small mt-2" style="font-size: 0.82rem;">
-                                <i class="bi bi-qr-code-scan me-1 text-success"></i>Scan VietQR with your Mobile Banking App
+                                <i class="bi bi-qr-code-scan me-1 text-success"></i>Scan the QR code with your banking app
                             </div>
                             <div class="text-muted small mb-3" style="font-size: 0.75rem;">
                                 Supported by Vietcombank, MB, Techcombank, MoMo &amp; all NAPAS 247 banks
@@ -166,80 +162,16 @@
                                         </button>
                                     </h2>
                                     <div id="collapseSummary" class="accordion-collapse collapse" aria-labelledby="headingSummary">
-                                        <div class="accordion-body bg-light small">
-                                            <div class="fw-bold text-dark mb-1">
-                                                ${e:esc(e:roomName(roomNumber))} (Room ${e:esc(roomNumber)})
-                                            </div>
-                                            <t:if test="${not empty bookingDetail && not empty bookingDetail.booking && not empty bookingDetail.booking.slotDate}">
-                                                <div class="text-muted mb-2">
-                                                    <i class="bi bi-calendar3 me-1"></i>${e:date(bookingDetail.booking.slotDate)}
-                                                </div>
-                                            </t:if>
-                                            <div class="mb-2">
-                                                <t:forEach items="${bookingDetail.slots}" var="slot">
-                                                    <span class="badge border bg-white text-dark me-1 mb-1 font-monospace" style="font-size: 0.72rem;">
-                                                        ${e:esc(slot.slotCode)} &middot; ${e:esc(slot.timeRange)}
-                                                    </span>
-                                                </t:forEach>
-                                            </div>
-                                            <div class="border-top pt-2 mt-2">
-                                                <t:if test="${not empty bookingDetail && not empty bookingDetail.booking && bookingDetail.booking.discountAmount > 0}">
-                                                    <div class="d-flex justify-content-between text-muted mb-1">
-                                                        <span>Base Price:</span>
-                                                        <span>${e:money(bookingDetail.booking.subtotal)}</span>
-                                                    </div>
-                                                    <div class="d-flex justify-content-between text-success mb-1">
-                                                        <span>Multi-slot discount (-${bookingDetail.booking.discountPercent}%):</span>
-                                                        <span>-${e:money(bookingDetail.booking.discountAmount)}</span>
-                                                    </div>
-                                                </t:if>
-                                                <div class="d-flex justify-content-between fw-bold text-dark">
-                                                    <span>Total Amount:</span>
-                                                    <span>${e:money(amount)}</span>
-                                                </div>
-                                            </div>
+                                        <div class="accordion-body bg-milk">
+                                            <t:reservationSummary detail="${bookingDetail}" amount="${amount}" roomNumber="${roomNumber}" bookingCode="${bookingCode}"/>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Desktop Booking Summary Card (>= 768px) -->
-                            <div class="card border rounded-3 p-3 mb-3 d-none d-md-block bg-milk">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <div class="mockpay-amount-label mb-0">Booking Reservation</div>
-                                    <span class="font-monospace fw-bold text-caramel">${e:esc(bookingCode)}</span>
-                                </div>
-                                <div class="fs-6 fw-bold text-dark">
-                                    ${e:esc(e:roomName(roomNumber))} &middot; Room ${e:esc(roomNumber)}
-                                </div>
-                                <t:if test="${not empty bookingDetail && not empty bookingDetail.booking && not empty bookingDetail.booking.slotDate}">
-                                    <div class="text-muted small mb-2">
-                                        <i class="bi bi-calendar3 me-1"></i>Date: <strong>${e:date(bookingDetail.booking.slotDate)}</strong>
-                                    </div>
-                                </t:if>
-                                <div class="mb-2">
-                                    <t:forEach items="${bookingDetail.slots}" var="slot">
-                                        <span class="badge border bg-white text-dark me-1 mb-1 font-monospace" style="font-size: 0.75rem;">
-                                            ${e:esc(slot.slotCode)} &middot; ${e:esc(slot.timeRange)}
-                                        </span>
-                                    </t:forEach>
-                                </div>
-                                <div class="border-top pt-2 mt-1">
-                                    <t:if test="${not empty bookingDetail && not empty bookingDetail.booking && bookingDetail.booking.discountAmount > 0}">
-                                        <div class="d-flex justify-content-between small text-muted mb-1">
-                                            <span>Base Price:</span>
-                                            <span>${e:money(bookingDetail.booking.subtotal)}</span>
-                                        </div>
-                                        <div class="d-flex justify-content-between small text-success mb-1">
-                                            <span>Multi-slot Discount (-${bookingDetail.booking.discountPercent}%):</span>
-                                            <span>-${e:money(bookingDetail.booking.discountAmount)}</span>
-                                        </div>
-                                    </t:if>
-                                    <div class="d-flex justify-content-between align-items-baseline">
-                                        <span class="small fw-semibold text-muted">Total Due:</span>
-                                        <span class="fs-5 fw-bold text-espresso">${e:money(amount)}</span>
-                                    </div>
-                                </div>
+                            <div class="card border rounded-3 p-3 mb-3 d-none d-md-block bg-milk ss-reservation-card-checkout">
+                                <t:reservationSummary detail="${bookingDetail}" amount="${amount}" roomNumber="${roomNumber}" bookingCode="${bookingCode}"/>
                             </div>
 
                             <!-- Beneficiary Account Details Card -->
@@ -326,13 +258,13 @@
                             <!-- Customer Action Buttons -->
                             <div class="d-flex flex-column gap-2 mockpay-order-actions mt-auto">
                                 <!-- 1. Primary Button: Manual Check Payment Status -->
-                                <button type="button" id="btnCheckStatus" class="btn btn-caramel w-100 fw-semibold d-inline-flex align-items-center justify-content-center" style="min-height: 44px; font-size: 0.95rem;">
+                                <button type="button" id="btnCheckStatus" class="btn btn-caramel w-100 fw-semibold d-inline-flex align-items-center justify-content-center ss-paybar-m__cta" style="min-height: 44px; font-size: 0.95rem;">
                                     <i class="bi bi-arrow-repeat me-2 fs-5"></i>Check payment status
                                 </button>
                                 <div id="manualCheckFeedback" class="small text-center text-muted mt-1 d-none"></div>
 
                                 <!-- 2. Secondary Button: Cancel & return to booking (with confirm dialog) -->
-                                <button type="button" id="btnCancelBooking" class="btn btn-outline-soft w-100 fw-semibold d-inline-flex align-items-center justify-content-center" style="min-height: 44px; font-size: 0.9rem;">
+                                <button type="button" id="btnCancelBooking" class="btn btn-outline-soft w-100 fw-semibold d-inline-flex align-items-center justify-content-center ss-paybar-m__cancel" style="min-height: 44px; font-size: 0.9rem;">
                                     <i class="bi bi-x-circle me-2"></i>Cancel &amp; return to booking
                                 </button>
                             </div>
@@ -349,7 +281,7 @@
                             <i class="bi bi-check2-circle fs-1"></i>
                         </div>
                     </div>
-                    <h2 class="h4 fw-bold text-dark mb-1">Payment Received!</h2>
+                    <h2 class="h4 text-dark mb-1">Payment received</h2>
                     <p class="text-muted small mb-2">Transaction verified via NAPAS 24/7 bank transfer. Door access credentials have been generated.</p>
                     <p class="text-success small fw-semibold mb-4" id="redirectNoticeText">
                         <span class="spinner-border spinner-border-sm me-1" role="status"></span> Redirecting to payment result in <span id="redirectSecs">2</span>s...
@@ -375,8 +307,9 @@
                     </div>
                 </div>
 
-                <!-- Developer Sandbox Panel (docked at bottom-right, distinct from guest UI) -->
-                <t:if test="${simulatorEnabled}">
+                <!-- Developer Sandbox Panel (docked at bottom-right, distinct from guest UI).
+                     Replaced by the Demo drawer payment buttons when demo.mode is on (Task R2-B3). -->
+                <t:if test="${simulatorEnabled && !ssDemoDrawer}">
                     <div class="sandbox-simulator-dock" id="sandboxSimulatorDock">
                         <div class="sandbox-dock-header" id="sandboxDockHeader" title="Click to collapse / expand developer simulation tool">
                             <div class="d-flex align-items-center gap-2">
@@ -412,7 +345,7 @@
     </div>
 
     <!-- Client-side Realtime WebSocket & MockPay scripts -->
-    <script src="${pageContext.request.contextPath}/assets/js/realtime.js"></script>
+    <%-- V4: realtime.js is already loaded once by layout.tag (a second copy opened a second socket) --%>
     <script src="${pageContext.request.contextPath}/assets/js/mockpay.js"></script>
     <script>
         (function() {

@@ -40,6 +40,7 @@ import javax.servlet.http.HttpSession;
     "/admin/devices/edit",
     "/admin/devices/delete",
     "/admin/devices/api-key",
+    "/admin/devices/command",
     "/admin/thresholds",
     "/admin/thresholds/edit",
     "/admin/thresholds/delete"
@@ -89,6 +90,10 @@ public class DeviceAdminServlet extends HttpServlet {
             resp.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "POST is required for API key regeneration.");
             return;
         }
+        if ("/admin/devices/command".equals(path)) {
+            resp.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "POST is required for remote commands.");
+            return;
+        }
         if ("/admin/thresholds".equals(path)) {
             listThresholds(req, resp);
             return;
@@ -118,6 +123,10 @@ public class DeviceAdminServlet extends HttpServlet {
         }
         if ("/admin/devices/api-key".equals(path)) {
             regenerateApiKey(req, resp);
+            return;
+        }
+        if ("/admin/devices/command".equals(path)) {
+            sendCommand(req, resp);
             return;
         }
         if ("/admin/thresholds/edit".equals(path)) {
@@ -177,6 +186,37 @@ public class DeviceAdminServlet extends HttpServlet {
                 session.removeAttribute("newApiKeyRevealed");
                 session.removeAttribute("newApiKeyDeviceId");
             }
+        }
+
+        // R9: rows grouped by zone (main entrance, lobby, then others) + "1 fault · 3 offline · 0 online"
+        java.util.List<Device> rows = new java.util.ArrayList<>(result.getItems());
+        java.util.Collections.sort(rows, new java.util.Comparator<Device>() {
+            @Override
+            public int compare(Device a, Device b) {
+                int c = Integer.compare(util.ActivityLog.zoneRank(a.getZoneId()), util.ActivityLog.zoneRank(b.getZoneId()));
+                if (c == 0) {
+                    c = String.valueOf(a.getZoneId()).compareTo(String.valueOf(b.getZoneId()));
+                }
+                return (c != 0) ? c : String.valueOf(a.getDeviceName()).compareToIgnoreCase(String.valueOf(b.getDeviceName()));
+            }
+        });
+        req.setAttribute("deviceGroups", util.ActivityLog.groupBy(rows,
+                new util.ActivityLog.KeyFn<Device>() {
+                    @Override
+                    public String key(Device d) {
+                        return d.getZoneId() == null ? "" : d.getZoneId();
+                    }
+                },
+                new util.ActivityLog.KeyFn<String>() {
+                    @Override
+                    public String key(String zone) {
+                        return util.ActivityLog.zoneLabel(zone);
+                    }
+                }));
+        try {
+            req.setAttribute("deviceCounts", new dao.DashboardDao().getDeviceStatusCounts());
+        } catch (SQLException e) {
+            LOGGER.log(Level.WARNING, "Failed to count devices by status", e);
         }
 
         req.setAttribute("result", result);
@@ -450,6 +490,48 @@ public class DeviceAdminServlet extends HttpServlet {
             Flash.danger(req, "Database error updating API key.");
             resp.sendRedirect(req.getContextPath() + "/admin/devices");
         }
+    }
+
+    /**
+     * Remote door command from the Devices page: UNLOCK (opens the lock like the inside exit button)
+     * or SILENCE (stops the alarm / door-open reminder that is sounding now). Sent over MQTT, signed
+     * with the device API key hash; the lock confirms through /api/iot/heartbeat (realtime DEVICE_ACK).
+     */
+    private void sendCommand(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String deviceId = req.getParameter("deviceId");
+        String command = req.getParameter("command");
+        String back = req.getContextPath() + "/admin/devices";
+        if (deviceId == null || deviceId.trim().isEmpty()
+                || !("UNLOCK".equals(command) || "SILENCE".equals(command))) {
+            Flash.danger(req, "Unknown device command.");
+            resp.sendRedirect(back);
+            return;
+        }
+        deviceId = deviceId.trim();
+        try {
+            Device device = deviceDao.findById(deviceId);
+            if (device == null || !"SMART_LOCK".equals(device.getDeviceType())) {
+                Flash.danger(req, "Remote commands work only for door locks.");
+            } else if (!device.isActive()) {
+                Flash.danger(req, device.getDeviceName() + " is disabled.");
+            } else if (device.getApiKeyHash() == null || device.getApiKeyHash().trim().isEmpty()) {
+                Flash.warning(req, "Generate an API key for " + device.getDeviceName()
+                        + " and put it in the lock firmware first. Commands are signed with that key.");
+            } else if (service.MqttService.publishCommand(deviceId, command, device.getApiKeyHash().trim().toLowerCase())) {
+                HttpSession session = req.getSession(false);
+                AuthUser user = (session != null) ? (AuthUser) session.getAttribute("authUser") : null;
+                LOGGER.info("Remote " + command + " sent to " + deviceId + " by user "
+                        + (user != null ? user.getUserId() : "?"));
+                Flash.success(req, ("UNLOCK".equals(command) ? "Unlock" : "Silence")
+                        + " sent to " + device.getDeviceName() + ". Waiting for the lock to confirm.");
+            } else {
+                Flash.danger(req, "Could not reach the MQTT broker. Check the server internet connection and try again.");
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Failed to load device " + deviceId + " for command", e);
+            Flash.danger(req, "Database error while sending the command.");
+        }
+        resp.sendRedirect(back);
     }
 
     // =========================================================================

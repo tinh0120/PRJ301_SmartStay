@@ -66,10 +66,11 @@ public class PaymentService {
                     throw new ServiceException("INVALID_STATUS", "Booking is not in pending payment status.");
                 }
 
-                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime realNow = util.ClockService.realNow();
+                LocalDateTime clockNow = util.ClockService.now();
                 LocalDateTime deadline = (deadlineTs != null) ? deadlineTs.toLocalDateTime() : null;
 
-                if (deadline != null && now.isAfter(deadline)) {
+                if (deadline != null && realNow.isAfter(deadline)) {
                     // Check if slots are still held and in future
                     String slotCheckSql = "SELECT COUNT(*) FROM BOOKING_SLOT WHERE booking_id = ? AND start_at > ? AND hold_status = 'HELD'";
                     String totalSlotsSql = "SELECT COUNT(*) FROM BOOKING_SLOT WHERE booking_id = ?";
@@ -78,7 +79,7 @@ public class PaymentService {
 
                     try (PreparedStatement ps = conn.prepareStatement(slotCheckSql)) {
                         ps.setLong(1, bookingId);
-                        ps.setTimestamp(2, Timestamp.valueOf(now));
+                        ps.setTimestamp(2, Timestamp.valueOf(clockNow));
                         try (ResultSet rs = ps.executeQuery()) {
                             if (rs.next()) validHeld = rs.getInt(1);
                         }
@@ -93,7 +94,7 @@ public class PaymentService {
                     if (totalSlots > 0 && validHeld == totalSlots) {
                         // Slots still available, extend deadline
                         int holdMinutes = AppConstants.BOOKING_HOLD_MINUTES;
-                        LocalDateTime newDeadline = now.plusMinutes(holdMinutes);
+                        LocalDateTime newDeadline = realNow.plusMinutes(holdMinutes);
                         try (PreparedStatement ps = conn.prepareStatement(
                                 "UPDATE BOOKING SET payment_deadline = ?, updated_at = SYSDATETIME() WHERE booking_id = ?")) {
                             ps.setTimestamp(1, Timestamp.valueOf(newDeadline));
@@ -137,7 +138,7 @@ public class PaymentService {
                 }
 
                 int ttlSeconds = AppConstants.PAYMENT_LINK_TTL_SECONDS;
-                Timestamp expiresAt = Timestamp.valueOf(now.plusSeconds(ttlSeconds));
+                Timestamp expiresAt = Timestamp.valueOf(realNow.plusSeconds(ttlSeconds));
 
                 String provider = AppConstants.PAYMENT_PROVIDER;
                 String linkId = "mock_" + java.util.UUID.randomUUID().toString();
@@ -257,11 +258,11 @@ public class PaymentService {
                     return;
                 }
 
-                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime realNow = util.ClockService.realNow();
 
                 // 4. Success outcome
                 if ("SUCCESS".equalsIgnoreCase(resultStatus)) {
-                    boolean unexpiredLink = (expiresAt != null && !now.isAfter(expiresAt.toLocalDateTime()));
+                    boolean unexpiredLink = (expiresAt != null && !realNow.isAfter(expiresAt.toLocalDateTime()));
                     boolean bookingPending = "PENDING_PAYMENT".equalsIgnoreCase(bookingStatus);
 
                     // Check if all slots still held
@@ -494,6 +495,8 @@ public class PaymentService {
                             String guestEmail = rs.getString("email");
                             String roomNumber = rs.getString("room_number");
                             String checkin = rs.getTimestamp("checkin_at").toString();
+                            String policyLine = util.CancellationPolicy.policySentence(
+                                    rs.getTimestamp("checkin_at").toLocalDateTime(), util.ClockService.now());
                             String checkout = rs.getTimestamp("checkout_at").toString();
                             long credId = rs.getLong("credential_id");
                             long guestId = rs.getLong("guest_id");
@@ -503,7 +506,7 @@ public class PaymentService {
                                 pin = "******";
                             }
 
-                            EmailService.sendBookingSuccess(guestEmail, guestName, bookingCode, roomNumber, pin, checkin, checkout);
+                            EmailService.sendBookingSuccess(guestEmail, guestName, bookingCode, roomNumber, pin, checkin, checkout, policyLine);
                             LOGGER.info("Confirmation email sent to " + guestEmail + " for booking " + bookingCode);
                         }
                     }

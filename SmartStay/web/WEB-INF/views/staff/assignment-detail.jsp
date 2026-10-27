@@ -4,27 +4,11 @@
 
 <t:layout title="Assignment #${assignment.assignmentId}" active="assignments">
     <div class="staff-portal-detail pb-4">
-        <!-- Breadcrumb & Top Bar -->
-        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+        <a href="${pageContext.request.contextPath}/staff/assignments" class="ss-back-link"><i class="bi bi-chevron-left" aria-hidden="true"></i> My cleaning tasks</a>
+        <div class="ss-page-header">
             <div>
-                <nav aria-label="breadcrumb" class="mb-2">
-                    <ol class="breadcrumb boutique-breadcrumb m-0">
-                        <li class="breadcrumb-item">
-                            <a href="${pageContext.request.contextPath}/staff/assignments" class="boutique-breadcrumb-link">
-                                <i class="bi bi-house-door me-1"></i>Housekeeping
-                            </a>
-                        </li>
-                        <li class="breadcrumb-item active" aria-current="page">Assignment #${assignment.assignmentId}</li>
-                    </ol>
-                </nav>
-                <h1 class="h3 fw-bold mb-0 text-dark">
-                    Housekeeping Task: <span style="color: #9A5B2E;">${e:esc(assignment.roomTitle)}</span>
-                </h1>
-            </div>
-            <div>
-                <a href="${pageContext.request.contextPath}/staff/assignments" class="btn btn-outline-secondary rounded-pill px-3 shadow-2xs">
-                    <i class="bi bi-chevron-left me-1"></i> Back to Schedule
-                </a>
+                <h1 class="ss-page-header__title">Room ${e:esc(assignment.roomNumber)}, ${e:esc(assignment.roomTitle)}</h1>
+                <p class="ss-page-header__subtitle">Cleaning task #${assignment.assignmentId}</p>
             </div>
         </div>
 
@@ -38,7 +22,7 @@
                             <i class="bi bi-clipboard-check text-primary"></i> Task Overview
                         </h5>
                         <span class="badge rounded-pill px-3 py-1 ${assignment.status == 'ASSIGNED' ? 'bg-primary text-white' : (assignment.status == 'COMPLETED' ? 'bg-success text-white' : 'bg-secondary text-white')}">
-                            ${e:esc(assignment.status)}
+                            ${e:esc(e:humanStatus(assignment.status))}
                         </span>
                     </div>
                     <div class="card-body p-4">
@@ -132,16 +116,12 @@
                         <div class="pt-3 border-top">
                             <t:if test="${assignment.status == 'ASSIGNED' and assignment.startedAt == null}">
                                 <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
-                                    <div class="text-muted small">
-                                        <i class="bi bi-info-circle me-1 text-primary"></i> Ready to begin cleaning? Click below to record session start.
-                                    </div>
+                                    <div class="text-muted small">Tap Start when you begin, so the admin sees the room is being cleaned.</div>
                                     <form action="${pageContext.request.contextPath}/staff/cleaning" method="post" class="m-0">
                                         <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
                                         <input type="hidden" name="assignmentId" value="${assignment.assignmentId}">
                                         <input type="hidden" name="action" value="start">
-                                        <button type="submit" class="btn btn-success rounded-pill px-4 shadow-sm fw-semibold">
-                                            <i class="bi bi-play-circle-fill me-1"></i> Start Cleaning Session
-                                        </button>
+                                        <button type="submit" class="btn btn-primary ss-staff__btn px-4">Start cleaning</button>
                                     </form>
                                 </div>
                             </t:if>
@@ -149,18 +129,17 @@
                             <t:if test="${assignment.status == 'ASSIGNED' and assignment.startedAt != null}">
                                 <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
                                     <div>
-                                        <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-1 rounded-pill mb-1">
-                                            <i class="bi bi-arrow-repeat me-1"></i> Cleaning in progress
-                                        </span>
-                                        <div class="text-muted small">Finished room turnover? Mark completed to release room to AVAILABLE status.</div>
+                                        <span class="ss-badge ss-badge--warning mb-1">Cleaning now</span>
+                                        <div class="text-muted small">When the room is ready for guests, mark it clean. It becomes available for booking.</div>
                                     </div>
-                                    <form action="${pageContext.request.contextPath}/staff/cleaning" method="post" class="m-0"
-                                          onsubmit="return confirm('Complete this cleaning session and mark the room as AVAILABLE?');">
+                                    <%-- Decision: "Mark as clean" needs a second tap within 3 s (no browser confirm dialog) --%>
+                                    <form action="${pageContext.request.contextPath}/staff/cleaning" method="post" class="m-0" data-tap-confirm-form>
                                         <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
                                         <input type="hidden" name="assignmentId" value="${assignment.assignmentId}">
                                         <input type="hidden" name="action" value="complete">
-                                        <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm fw-semibold" style="background-color: #9A5B2E; border-color: #9A5B2E;">
-                                            <i class="bi bi-check-circle-fill me-1"></i> Complete &amp; Release Room
+                                        <button type="submit" class="btn btn-primary ss-staff__btn ss-tap-confirm px-4" data-tap-confirm aria-live="polite">
+                                            <span class="ss-tap-confirm__text">Mark as clean</span>
+                                            <span class="ss-tap-confirm__bar" aria-hidden="true"></span>
                                         </button>
                                     </form>
                                 </div>
@@ -170,8 +149,8 @@
                                 <div class="alert alert-success py-3 px-4 mb-0 rounded-3 d-flex align-items-center gap-3">
                                     <i class="bi bi-check-circle-fill fs-3 text-success"></i>
                                     <div>
-                                        <strong>Turnover Complete!</strong>
-                                        <div class="small text-secondary">This room has been cleaned and returned to AVAILABLE status for new guest bookings.</div>
+                                        <strong>Room is clean</strong>
+                                        <div class="small text-secondary">Guests can book it again.</div>
                                     </div>
                                 </div>
                             </t:if>
@@ -180,8 +159,8 @@
                                 <div class="alert alert-danger py-3 px-4 mb-0 rounded-3 d-flex align-items-center gap-3">
                                     <i class="bi bi-exclamation-octagon-fill fs-3 text-danger"></i>
                                     <div>
-                                        <strong>Session Window Expired</strong>
-                                        <div class="small">The scheduled shift window for this turnover task has ended. Please contact your manager for re-assignment.</div>
+                                        <strong>This shift has ended</strong>
+                                        <div class="small">Ask the admin to assign the room again if it still needs cleaning.</div>
                                     </div>
                                 </div>
                             </t:if>
@@ -201,17 +180,18 @@
                     <div class="card-body text-center p-4">
                         <div class="mb-3">
                             <span class="badge rounded-pill px-3 py-1 ${credentialInfo != null && (credentialInfo.status == 'PENDING' || credentialInfo.status == 'ACTIVE') ? 'bg-success text-white' : 'bg-secondary text-white'}">
-                                Key ${credentialInfo != null ? e:esc(credentialInfo.status) : 'UNAVAILABLE'}
+                                Door PIN ${credentialInfo != null ? e:esc(e:humanStatus(credentialInfo.status)) : 'not available'}
                             </span>
                         </div>
 
                         <t:if test="${not empty shownPin}">
-                            <div class="my-3 p-4 rounded-4" style="background: linear-gradient(145deg, #FAF5EE, #F3E9DA); border: 1px solid #DFC9B0;">
-                                <div class="text-muted small text-uppercase fw-semibold mb-1" style="letter-spacing: 0.05em;">Your 6-Digit Door PIN</div>
-                                <div class="display-3 fw-bold font-monospace my-2 tracking-wider" style="color: #9A5B2E; letter-spacing: 0.15em;">
-                                    ${e:esc(shownPin)}
+                            <%-- V3: same Digital Keycard look as the guest PIN --%>
+                            <div class="ss-pin-vault my-3">
+                                <div class="ss-pin-vault__label">Main entrance door PIN</div>
+                                <div class="ss-pin-vault__display">
+                                    <div class="ss-pin-vault__digits ss-pin-vault__digits--reveal">${e:esc(shownPin)}</div>
                                 </div>
-                                <span class="badge bg-white text-muted border px-2 py-1 small"><i class="bi bi-shield-lock me-1"></i> Shift Authorized</span>
+                                <span class="ss-pin-vault__state">Works during your shift</span>
                             </div>
                             <p class="small text-muted mb-0 mt-3">
                                 Enter this 6-digit PIN on the main door smart keypad followed by <strong>#</strong> to enter the homestay during your shift.
@@ -226,8 +206,8 @@
                             <form action="${pageContext.request.contextPath}/staff/pin" method="post">
                                 <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
                                 <input type="hidden" name="assignmentId" value="${assignment.assignmentId}">
-                                <button type="submit" class="btn btn-primary rounded-pill w-100 py-2 fw-semibold shadow-sm" style="background-color: #9A5B2E; border-color: #9A5B2E;">
-                                    <i class="bi bi-eye-fill me-1"></i> Show Entrance PIN
+                                <button type="submit" class="btn btn-primary ss-staff__btn w-100">
+                                    Show door PIN
                                 </button>
                             </form>
                         </t:if>
@@ -254,4 +234,5 @@
             </div>
         </div>
     </div>
+    <script src="${pageContext.request.contextPath}/assets/js/tap-confirm.js"></script>
 </t:layout>

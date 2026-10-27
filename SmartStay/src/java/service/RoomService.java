@@ -72,7 +72,7 @@ public class RoomService {
 
         Map<Long, List<RoomSlot>> slotMap = roomDao.findByRoomIds(roomIds);
         Set<Long> heldIds = roomDao.findHeldSlotIds(roomIds, date);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = util.ClockService.now();
 
         List<RoomCard> cards = new ArrayList<>();
         for (Room r : roomPage.getItems()) {
@@ -148,7 +148,7 @@ public class RoomService {
         List<Long> idList = Collections.singletonList(roomId);
         Map<Long, List<RoomSlot>> slotMap = roomDao.findByRoomIds(idList);
         Set<Long> heldIds = roomDao.findHeldSlotIds(idList, date);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = util.ClockService.now();
 
         List<RoomSlot> slots = slotMap.get(roomId);
         if (slots == null) {
@@ -287,12 +287,17 @@ public class RoomService {
 
     public static LocalDate parseDateOrToday(String s) {
         if (s == null || s.trim().isEmpty()) {
-            return LocalDate.now();
+            return util.ClockService.now().toLocalDate();
         }
         try {
             return LocalDate.parse(s.trim());
         } catch (DateTimeParseException e) {
-            return LocalDate.now();
+            // V4: the search fields show dd/MM/yyyy
+            try {
+                return LocalDate.parse(s.trim(), java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            } catch (DateTimeParseException e2) {
+                return util.ClockService.now().toLocalDate();
+            }
         }
     }
 
@@ -316,13 +321,14 @@ public class RoomService {
                 roomIds.add(r.getRoomId());
             }
             Map<Long, List<RoomSlot>> slotMap = roomDao.findAllByRoomIds(roomIds);
-            Set<Long> heldIds = roomDao.findHeldSlotIds(roomIds, LocalDate.now());
+            Set<Long> heldIds = roomDao.findHeldSlotIds(roomIds, util.ClockService.now().toLocalDate());
 
             for (Room r : result.getItems()) {
                 List<RoomSlot> slots = slotMap.get(r.getRoomId());
                 if (slots != null) {
                     for (RoomSlot s : slots) {
-                        s.setTodayStatus(s.getEffectiveStatus(heldIds));
+                        // R8: the room status overrides the slot (a MAINTENANCE room never shows "Available")
+                        s.setTodayStatus(RoomSlot.effectiveForRoom(s.getEffectiveStatus(heldIds), r.getStatus(), r.isActive()));
                     }
                     r.setSlots(slots);
                 } else {
@@ -601,9 +607,10 @@ public class RoomService {
 
                     if (timeOrActiveChanged) {
                         String holdCheckSql = "SELECT COUNT(*) FROM BOOKING_SLOT "
-                                + "WHERE room_slot_id = ? AND hold_status = 'HELD' AND end_at > SYSDATETIME()";
+                                + "WHERE room_slot_id = ? AND hold_status = 'HELD' AND end_at > ?";
                         try (PreparedStatement ps = conn.prepareStatement(holdCheckSql)) {
                             ps.setLong(1, oldSlot.getRoomSlotId());
+                            ps.setTimestamp(2, util.ClockService.nowTimestamp());
                             try (ResultSet rs = ps.executeQuery()) {
                                 if (rs.next() && rs.getInt(1) > 0) {
                                     throw new IllegalStateException("This slot has active holds and its time cannot be changed until they are released.");

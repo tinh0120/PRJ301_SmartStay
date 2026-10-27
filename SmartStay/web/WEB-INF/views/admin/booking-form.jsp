@@ -4,28 +4,11 @@
 <t:layout title="${mode == 'create' ? 'Create walk-in booking' : 'Edit booking'}" active="admin-bookings">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <nav aria-label="breadcrumb" class="mb-3">
-                <ol class="breadcrumb boutique-breadcrumb m-0">
-                    <li class="breadcrumb-item">
-                        <a href="${pageContext.request.contextPath}/admin/dashboard" class="boutique-breadcrumb-link">
-                            <i class="bi bi-house-door me-1"></i>Dashboard
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="${pageContext.request.contextPath}/admin/bookings" class="boutique-breadcrumb-link">
-                            Bookings
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">
-                        <t:if test="${mode == 'create'}">Create walk-in</t:if>
-                        <t:if test="${mode != 'create'}">Edit ${booking.bookingCode}</t:if>
-                    </li>
-                </ol>
-            </nav>
+            <a href="${pageContext.request.contextPath}/admin/bookings" class="ss-back-link"><i class="bi bi-chevron-left" aria-hidden="true"></i> Bookings</a>
 
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white py-3">
-                    <h1 class="h4 fw-bold mb-0">
+                    <h1 class="h4 mb-0">
                         <t:if test="${mode == 'create'}">Create walk-in booking</t:if>
                         <t:if test="${mode != 'create'}">Edit booking ${booking.bookingCode}</t:if>
                     </h1>
@@ -41,7 +24,7 @@
                                 Confirmed bookings only allow updating the administrative note.
                             </t:if>
                             <t:if test="${booking.status != 'PENDING_PAYMENT' and booking.status != 'CONFIRMED'}">
-                                This booking is in <strong>${e:esc(booking.status)}</strong> status and cannot be modified.
+                                This booking is in <strong>${e:esc(e:humanStatus(booking.status))}</strong> status and cannot be modified.
                             </t:if>
                         </t:if>
                     </p>
@@ -50,7 +33,7 @@
                 <div class="card-body p-4">
                     <t:if test="${mode != 'create' and booking.status != 'PENDING_PAYMENT' and booking.status != 'CONFIRMED'}">
                         <div class="alert alert-warning" role="alert">
-                            Booking <strong>${e:esc(booking.bookingCode)}</strong> is currently ${e:esc(booking.status)}. Only PENDING_PAYMENT (full edit) and CONFIRMED (note only) bookings can be updated.
+                            Booking <strong>${e:esc(booking.bookingCode)}</strong> is currently ${e:esc(e:humanStatus(booking.status))}. Only pending-payment bookings (full edit) and confirmed bookings (note only) can be updated.
                         </div>
                         <div class="mt-3">
                             <a href="${pageContext.request.contextPath}/admin/bookings/detail?id=${booking.bookingId}" class="btn btn-outline-secondary">
@@ -87,7 +70,7 @@
                                     </div>
                                     <div class="col-sm-4">
                                         <span class="text-muted small d-block">Status</span>
-                                        <span class="badge ${booking.status == 'CONFIRMED' ? 'bg-success' : 'bg-warning text-dark'}">${e:esc(booking.status)}</span>
+                                        <span class="badge ${booking.status == 'CONFIRMED' ? 'bg-success' : 'bg-warning text-dark'}">${e:esc(e:humanStatus(booking.status))}</span>
                                     </div>
                                 </div>
                             </t:if>

@@ -122,7 +122,11 @@ public class AdminBookingServlet extends HttpServlet {
 
     private void listBookings(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        PageRequest pr = PageRequest.from(req, BookingDao.ADMIN_SORT_WHITELIST, "created", "DESC");
+        // R7: default order = stays still ahead or running (nearest check-in first), then newest
+        PageRequest pr = PageRequest.from(req, BookingDao.ADMIN_SORT_WHITELIST, "upcoming", "ASC");
+        if (!pr.getFilter("chip").isEmpty() && !BookingDao.ADMIN_CHIPS.contains(pr.getFilter("chip").toLowerCase())) {
+            pr.setFilter("chip", null);
+        }
 
         String q = req.getParameter("q");
         if (q != null && !q.trim().isEmpty() && pr.getKeyword().isEmpty()) {
@@ -151,6 +155,14 @@ public class AdminBookingServlet extends HttpServlet {
             LOGGER.log(Level.SEVERE, "Failed to load active rooms for booking list filter", e);
         }
 
+        // R7: links that keep every other filter (chips toggle "chip", tabs switch "status")
+        req.setAttribute("chipBaseQs", pr.toQueryString("page", "size", "chip", "flag"));
+        req.setAttribute("tabBaseQs", pr.toQueryString("page", "size", "status", "flag"));
+        req.setAttribute("activeChip", pr.getFilter("chip").toLowerCase());
+        boolean moreFilters = !pr.getFilter("payment_status").isEmpty() || !pr.getFilter("room").isEmpty()
+                || !pr.getFilter("from").isEmpty() || !pr.getFilter("to").isEmpty() || !pr.getFilter("noshow_held").isEmpty();
+        req.setAttribute("moreFiltersOpen", moreFilters);
+
         try {
             PageResult<Booking> pageResult = bookingDao.findPageAdmin(pr);
             req.setAttribute("pageResult", pageResult);
@@ -158,7 +170,9 @@ public class AdminBookingServlet extends HttpServlet {
             req.setAttribute("pr", pr);
             try {
                 req.setAttribute("statusCounts", bookingDao.getStatusCounts());
-            } catch (SQLException ignored) {
+            } catch (SQLException e) {
+                // Logged instead of ignored: a silent failure here showed 0 on every tab (R7)
+                LOGGER.log(Level.SEVERE, "Failed to count bookings by status", e);
             }
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Failed to load admin booking list", e);
@@ -290,7 +304,7 @@ public class AdminBookingServlet extends HttpServlet {
                 targetRoomId = rooms.get(0).getRoomId();
             }
 
-            LocalDate targetDate = LocalDate.now();
+            LocalDate targetDate = util.ClockService.now().toLocalDate();
             String dateStr = req.getParameter("date");
             if (dateStr != null && !dateStr.trim().isEmpty()) {
                 try {

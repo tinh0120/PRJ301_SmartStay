@@ -71,6 +71,14 @@ public class AlertThreshold implements Serializable {
         return thresholdValue;
     }
 
+    /** Returns thresholdValue without trailing zeros (e.g. "30", "50", "12.5") for display. */
+    public String getThresholdValueFormatted() {
+        if (thresholdValue == null) {
+            return "";
+        }
+        return thresholdValue.stripTrailingZeros().toPlainString();
+    }
+
     public void setThresholdValue(BigDecimal thresholdValue) {
         this.thresholdValue = thresholdValue;
     }

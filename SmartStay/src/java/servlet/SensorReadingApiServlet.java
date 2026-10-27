@@ -83,11 +83,17 @@ public class SensorReadingApiServlet extends HttpServlet {
         }
         deviceId = deviceId.trim();
 
-        try {
-            Device device = deviceDao.findById(deviceId);
-            if (device == null) {
+        try (java.sql.Connection conn = util.DBUtil.getConnection()) {
+            // Device key check (only once a key exists) + heartbeat stamp
+            util.IotDevices.DeviceAuth auth = util.IotDevices.authenticateAndTouch(conn, deviceId, req);
+            if (!auth.found) {
                 sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "DEVICE_NOT_FOUND",
                         "Device '" + deviceId + "' does not exist.");
+                return;
+            }
+            if (!auth.allowed) {
+                sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "BAD_DEVICE_KEY",
+                        "Missing or wrong X-Device-Key, or device disabled.");
                 return;
             }
         } catch (SQLException e) {

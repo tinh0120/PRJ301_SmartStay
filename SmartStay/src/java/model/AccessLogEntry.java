@@ -124,4 +124,24 @@ public class AccessLogEntry implements Serializable {
     public void setReasonCode(String reasonCode) {
         this.reasonCode = reasonCode;
     }
+
+    // --- R9 display fields ---
+    private String deviceName;
+
+    public String getDeviceName() {
+        return deviceName;
+    }
+
+    public void setDeviceName(String deviceName) {
+        this.deviceName = deviceName;
+    }
+
+    /** Reason in plain words ("Wrong PIN"); empty when allowed. */
+    public String getReasonText() {
+        return util.ActivityLog.reasonText(reasonCode);
+    }
+
+    public boolean isDenied() {
+        return "DENIED".equalsIgnoreCase(result);
+    }
 }

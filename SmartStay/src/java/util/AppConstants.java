@@ -42,6 +42,9 @@ public final class AppConstants {
     /** config_key: MAX_ADVANCE_BOOKING_DAYS */
     public static final int MAX_ADVANCE_BOOKING_DAYS = 60;
 
+    /** Free cancellation (100% refund) until this many hours before the first booked slot (Round 2, R3). */
+    public static final int CANCEL_FREE_HOURS = 48;
+
     // --- Multi-Slot Discount Percentages (Spec 2.2) ---
     /** config_key: DISCOUNT_2_SLOTS_PERCENT */
     public static final int DISCOUNT_2_SLOTS_PERCENT = 10;

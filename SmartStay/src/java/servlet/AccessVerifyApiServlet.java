@@ -40,6 +40,10 @@ public class AccessVerifyApiServlet extends HttpServlet {
 
         resp.setContentType("application/json;charset=UTF-8");
         JsonObject responseJson = new JsonObject();
+        long startNs = System.nanoTime();
+        // Realtime pushes run after the answer is flushed so the ESP32 opens the door without waiting on them
+        long checkedInRoomId = -1;
+        long checkedInBookingId = -1;
 
         try {
             StringBuilder sb = new StringBuilder();
@@ -90,6 +94,16 @@ public class AccessVerifyApiServlet extends HttpServlet {
             byte[] pinHmac = SecurityUtil.hmacPin(pin);
 
             try (Connection conn = DBUtil.getConnection()) {
+                // Device key (X-Device-Key, only once a key was generated) + heartbeat stamp
+                util.IotDevices.DeviceAuth auth = util.IotDevices.authenticateAndTouch(conn, deviceId, req);
+                if (!auth.found || !auth.allowed) {
+                    resp.setStatus(auth.found ? HttpServletResponse.SC_UNAUTHORIZED : HttpServletResponse.SC_NOT_FOUND);
+                    responseJson.addProperty("allowed", false);
+                    responseJson.addProperty("reason", auth.found ? "BAD_DEVICE_KEY" : "DEVICE_NOT_FOUND");
+                    resp.getWriter().write(responseJson.toString());
+                    return;
+                }
+
                 // Check if requestId exists (anti-replay attack)
                 String checkReplaySql = "SELECT 1 FROM ACCESS_LOG WHERE request_id = ?";
                 try (PreparedStatement ps = conn.prepareStatement(checkReplaySql)) {
@@ -139,16 +153,17 @@ public class AccessVerifyApiServlet extends HttpServlet {
                     }
                 }
 
-                Timestamp nowTs = new Timestamp(System.currentTimeMillis());
+                Timestamp clockTs = util.ClockService.nowTimestamp();
+                Timestamp realTs = util.ClockService.realNowTimestamp();
                 boolean allowed = false;
                 String reasonCode = "WRONG_PIN";
 
                 if (foundCred) {
                     if ("REVOKED".equalsIgnoreCase(credStatus)) {
                         reasonCode = "REVOKED";
-                    } else if ("EXPIRED".equalsIgnoreCase(credStatus) || (validUntil != null && nowTs.after(validUntil))) {
+                    } else if ("EXPIRED".equalsIgnoreCase(credStatus) || (validUntil != null && clockTs.after(validUntil))) {
                         reasonCode = "EXPIRED";
-                    } else if (validFrom != null && nowTs.before(validFrom) && !allowEarly) {
+                    } else if (validFrom != null && clockTs.before(validFrom) && !allowEarly) {
                         reasonCode = "NOT_YET_VALID"; // "Too early to check in"
                     } else if ("PENDING".equalsIgnoreCase(credStatus) || "ACTIVE".equalsIgnoreCase(credStatus)) {
                         allowed = true;
@@ -156,7 +171,7 @@ public class AccessVerifyApiServlet extends HttpServlet {
                     }
                 }
 
-                // 4. Record ACCESS_LOG
+                // 4. Record ACCESS_LOG (STRICT REAL TIME for security audit)
                 String insertLogSql = "INSERT INTO ACCESS_LOG (credential_id, device_id, request_id, attempted_at, result, reason_code) "
                         + "VALUES (?, ?, ?, ?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(insertLogSql)) {
@@ -167,7 +182,7 @@ public class AccessVerifyApiServlet extends HttpServlet {
                     }
                     ps.setString(2, deviceId);
                     ps.setString(3, requestId);
-                    ps.setTimestamp(4, nowTs);
+                    ps.setTimestamp(4, realTs);
                     ps.setString(5, allowed ? "ALLOWED" : "DENIED");
                     ps.setString(6, reasonCode);
                     ps.executeUpdate();
@@ -187,7 +202,7 @@ public class AccessVerifyApiServlet extends HttpServlet {
                         String updateBookingSql = "UPDATE BOOKING SET status = 'CHECKED_IN', actual_checkin_at = ? "
                                 + "WHERE booking_id = ? AND status = 'CONFIRMED'";
                         try (PreparedStatement ps = conn.prepareStatement(updateBookingSql)) {
-                            ps.setTimestamp(1, nowTs);
+                            ps.setTimestamp(1, clockTs);
                             ps.setLong(2, bookingId);
                             int rows = ps.executeUpdate();
                             if (rows > 0 && roomId > 0) {
@@ -196,8 +211,8 @@ public class AccessVerifyApiServlet extends HttpServlet {
                                     psR.setLong(1, roomId);
                                     psR.executeUpdate();
                                 }
-                                websocket.RealtimeWebSocketEndpoint.broadcastBookingUpdated("BK" + String.format("%06d", bookingId), "CHECKED_IN", roomId);
-                                websocket.RealtimeWebSocketEndpoint.broadcastRoomStatusChanged(roomId, "", "OCCUPIED");
+                                checkedInRoomId = roomId;
+                                checkedInBookingId = bookingId;
                             }
                         }
                     }
@@ -206,6 +221,7 @@ public class AccessVerifyApiServlet extends HttpServlet {
                     responseJson.addProperty("allowed", true);
                     responseJson.addProperty("reason", "OK");
                     responseJson.addProperty("durationSeconds", 5);
+                    responseJson.addProperty("holder", bookingId > 0 ? "GUEST" : "STAFF");
                     LOGGER.info("Access GRANTED for device " + deviceId + " with credential #" + credentialId);
                 } else {
                     resp.setStatus(HttpServletResponse.SC_OK);
@@ -229,6 +245,13 @@ public class AccessVerifyApiServlet extends HttpServlet {
             responseJson.addProperty("reason", "INTERNAL_SERVER_ERROR");
         }
 
+        responseJson.addProperty("serverMs", (System.nanoTime() - startNs) / 1000000L);
         resp.getWriter().write(responseJson.toString());
+        resp.flushBuffer();
+
+        if (checkedInRoomId > 0) {
+            websocket.RealtimeWebSocketEndpoint.broadcastBookingUpdated("BK" + String.format("%06d", checkedInBookingId), "CHECKED_IN", checkedInRoomId);
+            websocket.RealtimeWebSocketEndpoint.broadcastRoomStatusChanged(checkedInRoomId, "", "OCCUPIED");
+        }
     }
 }

@@ -190,6 +190,12 @@ public class PermissionFilter implements Filter {
                     deny(req, resp, authUser.getUserId(), path);
                     return;
                 }
+            } else if (path.startsWith("/admin/activity")) {
+                // R9: merged Activity logs page; each tab re-checks its own permission in LogAdminServlet
+                if (perms == null || (!perms.contains("LOG_ACCESS_VIEW") && !perms.contains("LOG_MOTION_VIEW"))) {
+                    deny(req, resp, authUser.getUserId(), path);
+                    return;
+                }
             } else if (path.startsWith("/admin/alerts/action")) {
                 if (perms == null || (!perms.contains("ALERT_HANDLE") && !"OWNER".equalsIgnoreCase(roleName) && !"ADMIN".equalsIgnoreCase(roleName))) {
                     deny(req, resp, authUser.getUserId(), path);

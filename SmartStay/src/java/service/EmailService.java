@@ -85,7 +85,8 @@ public class EmailService {
      * 1. Booking confirmation email with door access PIN.
      */
     public static void sendBookingSuccess(String toEmail, String guestName, String bookingCode,
-                                          String roomNumber, String pin, String checkin, String checkout) {
+                                          String roomNumber, String pin, String checkin, String checkout,
+                                          String cancellationPolicyLine) {
         String formattedCheckin = formatDateTime(checkin);
         String formattedCheckout = formatDateTime(checkout);
         String subject = "SmartStay - Booking Confirmation #" + bookingCode;
@@ -105,6 +106,8 @@ public class EmailService {
                 + "<div style='font-size: 38px; font-weight: bold; color: #d93025; letter-spacing: 8px; margin: 10px 0; font-family: monospace;'>" + pin + "</div>"
                 + "<div style='color: #666; font-size: 13px;'>Enter these 6 digits on the main door keypad and press <b>#</b> to unlock.</div>"
                 + "</div>"
+                + ((cancellationPolicyLine != null && !cancellationPolicyLine.isEmpty())
+                    ? "<p style='color: #555; font-size: 13px; line-height: 1.5;'>" + cancellationPolicyLine + "</p>" : "")
                 + "<p style='color: #888; font-size: 12px; margin-top: 25px; line-height: 1.5;'>We wish you a pleasant and memorable stay at SmartStay!</p>"
                 + "</div>";
 

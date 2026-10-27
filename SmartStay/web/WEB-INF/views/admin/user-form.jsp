@@ -4,32 +4,12 @@
 <t:layout title="${empty targetUser.userId ? 'New user' : 'Edit user'}" active="admin-users">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <nav aria-label="breadcrumb" class="mb-3">
-                <ol class="breadcrumb boutique-breadcrumb m-0">
-                    <li class="breadcrumb-item">
-                        <a href="${pageContext.request.contextPath}/admin/dashboard" class="boutique-breadcrumb-link">
-                            <i class="bi bi-house-door me-1"></i>Dashboard
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="${pageContext.request.contextPath}/admin/users" class="boutique-breadcrumb-link">
-                            Users
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">${empty targetUser.userId ? 'New User' : 'Edit User'}</li>
-                </ol>
-            </nav>
-
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="ss-page-header">
                 <div>
-                    <h1 class="h2 mb-1">${empty targetUser.userId ? 'Create new user' : 'Edit user'}</h1>
-                    <p class="text-muted small mb-0">Configure account credentials, system role, and staff employment details</p>
+                    <h1 class="ss-page-header__title">${empty targetUser.userId ? 'New user' : 'Edit user'}</h1>
+                    <p class="ss-page-header__subtitle">Login details, role and, for staff, employment details.</p>
                 </div>
-                <div>
-                    <a href="${pageContext.request.contextPath}/admin/users" class="btn btn-outline-secondary btn-sm">
-                        &larr; Back to users
-                    </a>
-                </div>
+                <a href="${pageContext.request.contextPath}/admin/users" class="btn btn-outline-soft btn-sm"><i class="bi bi-chevron-left" aria-hidden="true"></i> Users</a>
             </div>
 
             <t:if test="${not empty globalError}">

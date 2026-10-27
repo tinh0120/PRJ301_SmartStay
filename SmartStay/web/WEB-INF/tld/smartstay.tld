@@ -113,4 +113,67 @@
         <function-signature>java.lang.String timeAgo(java.lang.Object)</function-signature>
     </function>
 
+    <function>
+        <description>48-hour cancellation info (refundable, deadline, outcome) for a Booking or BookingDetail</description>
+        <name>cancellationInfo</name>
+        <function-class>util.ElFunctions</function-class>
+        <function-signature>util.CancellationPolicy.Info cancellationInfo(java.lang.Object)</function-signature>
+    </function>
+
+    <function>
+        <description>Hours of free cancellation before the first booked slot</description>
+        <name>cancelFreeHours</name>
+        <function-class>util.ElFunctions</function-class>
+        <function-signature>int cancelFreeHours()</function-signature>
+    </function>
+
+    <function>
+        <description>Stay times "16:30 → 09:00 (+1 day)"</description>
+        <name>stayTimes</name>
+        <function-class>util.ElFunctions</function-class>
+        <function-signature>java.lang.String stayTimes(java.lang.Object, java.lang.Object)</function-signature>
+    </function>
+
+    <function>
+        <description>Stay line "25/10 · 16:30 → 09:00 (+1 day)"</description>
+        <name>stayLine</name>
+        <function-class>util.ElFunctions</function-class>
+        <function-signature>java.lang.String stayLine(java.lang.Object, java.lang.Object)</function-signature>
+    </function>
+
+    <function>
+        <description>Slot names "Evening + Overnight" from codes or slot rows</description>
+        <name>slotNames</name>
+        <function-class>util.ElFunctions</function-class>
+        <function-signature>java.lang.String slotNames(java.lang.Object)</function-signature>
+    </function>
+
+    <function>
+        <description>One friendly guest booking state (label, tone, action)</description>
+        <name>guestState</name>
+        <function-class>util.ElFunctions</function-class>
+        <function-signature>util.BookingState guestState(java.lang.Object)</function-signature>
+    </function>
+
+    <function>
+        <description>One admin booking badge combining booking and payment status</description>
+        <name>adminState</name>
+        <function-class>util.ElFunctions</function-class>
+        <function-signature>util.BookingState adminState(java.lang.Object)</function-signature>
+    </function>
+
+    <function>
+        <description>Admin row line "26/10 · Morning + Afternoon · 09:30 → 19:30"</description>
+        <name>slotLine</name>
+        <function-class>util.ElFunctions</function-class>
+        <function-signature>java.lang.String slotLine(java.lang.Object, java.lang.Object, java.lang.Object)</function-signature>
+    </function>
+
+    <function>
+        <description>Plain-words alert title from util.AlertTitles ("DEVICE_OFFLINE" to "Device offline")</description>
+        <name>alertTitle</name>
+        <function-class>util.ElFunctions</function-class>
+        <function-signature>java.lang.String alertTitle(java.lang.Object)</function-signature>
+    </function>
+
 </taglib>

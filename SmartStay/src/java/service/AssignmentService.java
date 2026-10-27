@@ -228,7 +228,7 @@ public class AssignmentService {
      * Returns true if started, false if already active (no-op).
      */
     public boolean startCleaning(long staffId, long assignmentId, String ip) throws SQLException {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = util.ClockService.now();
 
         try (Connection conn = DBUtil.getConnection()) {
             conn.setAutoCommit(false);
@@ -273,7 +273,7 @@ public class AssignmentService {
      * Completes cleaning: assignment COMPLETED, room AVAILABLE, credential EXPIRED.
      */
     public void completeCleaning(long staffId, long assignmentId, String ip) throws SQLException {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = util.ClockService.now();
 
         try (Connection conn = DBUtil.getConnection()) {
             conn.setAutoCommit(false);

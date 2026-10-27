@@ -11,6 +11,7 @@ import service.RoomService;
 import util.AppConstants;
 import util.PageResult.PageRequest;
 import util.PageResult;
+import util.RoomFilter;
 import util.Validator;
 import java.io.IOException;
 import java.io.Serializable;
@@ -44,6 +45,7 @@ public class RoomPublicServlet extends HttpServlet {
 
     private final RoomService catalogService = new RoomService();
     private final ReviewDao reviewDao = new ReviewDao();
+    private final PricingService pricingService = new PricingService();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -62,9 +64,10 @@ public class RoomPublicServlet extends HttpServlet {
 
     private void handleList(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        LocalDate today = LocalDate.now();
+        LocalDate today = util.ClockService.now().toLocalDate();
         int maxDays = AppConstants.MAX_ADVANCE_BOOKING_DAYS;
         LocalDate maxDate = today.plusDays(maxDays);
+        String ctx = req.getContextPath();
 
         String dateParam = req.getParameter("date");
         LocalDate date = RoomService.parseDateOrToday(dateParam);
@@ -73,34 +76,32 @@ public class RoomPublicServlet extends HttpServlet {
             req.setAttribute("dateNotice", "Bookings are open from today up to " + maxDays + " days ahead.");
         }
 
-        // Parse slots filter: supports multiple slots parameter values or comma-separated string
-        List<String> selectedSlotCodes = new ArrayList<>();
-        String[] slotArr = req.getParameterValues("slots");
-        if (slotArr != null) {
-            for (String s : slotArr) {
-                if (s != null) {
-                    for (String part : s.split(",")) {
-                        String clean = part.trim().toUpperCase();
-                        if (!clean.isEmpty() && !selectedSlotCodes.contains(clean)) {
-                            selectedSlotCodes.add(clean);
-                        }
-                    }
-                }
-            }
+        // Slots: repeated "slots" values, "S1,S2" or legacy "slot"; day order; consecutive only (R4)
+        List<String> requestedSlots = RoomFilter.parseSlots(concat(req.getParameterValues("slots"), req.getParameter("slot")));
+        List<String> selectedSlotCodes = requestedSlots;
+        if (!RoomFilter.isConsecutive(requestedSlots)) {
+            selectedSlotCodes = RoomFilter.firstConsecutiveRun(requestedSlots);
+            req.setAttribute("slotNotice", "Time slots must be next to each other. Showing "
+                    + RoomFilter.slotLabels(selectedSlotCodes) + ".");
         }
-        String singleSlot = req.getParameter("slot");
-        if (singleSlot != null && !singleSlot.trim().isEmpty()) {
-            String clean = singleSlot.trim().toUpperCase();
-            if (!selectedSlotCodes.contains(clean)) {
-                selectedSlotCodes.add(clean);
-            }
-        }
+
+        Integer minCapacity = RoomFilter.parseIntFilter(req.getParameter("minCapacity"), 1, 20);
+        Integer floor = RoomFilter.parseIntFilter(req.getParameter("floor"), 0, 50);
+        String sort = RoomFilter.normalizeSort(req.getParameter("sort"), req.getParameter("dir"));
+        boolean availableOnly = "1".equals(req.getParameter("available")) || "true".equalsIgnoreCase(req.getParameter("available"));
 
         // Weekly 7-day strip navigation
         String weekStartParam = req.getParameter("weekStart");
         LocalDate weekStart = RoomService.parseDateOrToday(weekStartParam != null && !weekStartParam.isEmpty() ? weekStartParam : dateParam);
         if (weekStart.isBefore(today)) weekStart = today;
         if (weekStart.isAfter(maxDate)) weekStart = maxDate;
+        if (date.isBefore(weekStart) || date.isAfter(weekStart.plusDays(6))) {
+            weekStart = date.isBefore(today) ? today : date;
+        }
+
+        RoomFilter.State state = new RoomFilter.State(date.toString(), weekStart.toString(), selectedSlotCodes,
+                minCapacity, floor, sort, availableOnly);
+        String roomsPath = ctx + "/rooms";
 
         List<WeekDayItem> weekDays = new ArrayList<>(7);
         DateTimeFormatter dayFmt = DateTimeFormatter.ofPattern("dd/MM");
@@ -121,7 +122,9 @@ public class RoomPublicServlet extends HttpServlet {
                     default: dayName = "Day " + d.getDayOfMonth(); break;
                 }
             }
-            weekDays.add(new WeekDayItem(d, dayName, d.format(dayFmt), d.isEqual(date)));
+            WeekDayItem item = new WeekDayItem(d, dayName, d.format(dayFmt), d.isEqual(date));
+            item.setUrl(state.withDate(d.toString(), weekStart.toString()).url(roomsPath));
+            weekDays.add(item);
         }
         LocalDate prevWeekStart = weekStart.minusDays(7);
         if (prevWeekStart.isBefore(today)) prevWeekStart = today;
@@ -129,127 +132,216 @@ public class RoomPublicServlet extends HttpServlet {
         boolean canGoPrev = weekStart.isAfter(today);
         boolean canGoNext = nextWeekStart.isBefore(maxDate) || nextWeekStart.isEqual(maxDate);
 
-        PageRequest pr = PageRequest.from(req, SORT_KEYS, "room", "ASC");
-        Map<String, String> errors = new HashMap<>();
+        // Load every active room once; capacity/floor filters and sorting run in memory (6 rooms).
+        PageRequest pr = new PageRequest();
+        pr.setSize(100);
+        pr.setSort("room");
+        pr.setDir("ASC");
 
-        String capStr = pr.getFilter("minCapacity");
-        if (!capStr.isEmpty()) {
-            Integer cap = Validator.parseIntOrNull(capStr);
-            if (cap == null || cap < 1 || cap > 20) {
-                errors.put("minCapacity", "Capacity must be between 1 and 20.");
-                pr.setFilter("minCapacity", null);
-            }
-        }
-
-        String floorStr = pr.getFilter("floor");
-        if (!floorStr.isEmpty()) {
-            Integer floor = Validator.parseIntOrNull(floorStr);
-            if (floor == null || floor < 0 || floor > 50) {
-                errors.put("floor", "Floor must be between 0 and 50.");
-                pr.setFilter("floor", null);
-            }
-        }
-
-        String minPriceStr = pr.getFilter("minPrice");
-        String maxPriceStr = pr.getFilter("maxPrice");
-        Long minPrice = null;
-        Long maxPrice = null;
-
-        if (!minPriceStr.isEmpty()) {
-            try {
-                long mp = Long.parseLong(minPriceStr.trim());
-                if (mp < 0 || mp > 100000000L) {
-                    errors.put("minPrice", "Price must be between 0 and 100,000,000 VND.");
-                    pr.setFilter("minPrice", null);
-                } else {
-                    minPrice = mp;
-                }
-            } catch (NumberFormatException e) {
-                errors.put("minPrice", "Invalid minimum price format.");
-                pr.setFilter("minPrice", null);
-            }
-        }
-
-        if (!maxPriceStr.isEmpty()) {
-            try {
-                long mp = Long.parseLong(maxPriceStr.trim());
-                if (mp < 0 || mp > 100000000L) {
-                    errors.put("maxPrice", "Price must be between 0 and 100,000,000 VND.");
-                    pr.setFilter("maxPrice", null);
-                } else {
-                    maxPrice = mp;
-                }
-            } catch (NumberFormatException e) {
-                errors.put("maxPrice", "Invalid maximum price format.");
-                pr.setFilter("maxPrice", null);
-            }
-        }
-
-        if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
-            errors.put("minPrice", "Minimum price cannot exceed maximum price.");
-            pr.setFilter("minPrice", null);
-            pr.setFilter("maxPrice", null);
-        }
-
-        PageResult<RoomCard> result;
+        List<RoomListItem> items = new ArrayList<>();
+        java.util.TreeSet<Integer> capacityOptions = new java.util.TreeSet<>();
+        java.util.TreeSet<Integer> floorOptions = new java.util.TreeSet<>();
         int totalRoomCount = 0;
         int availableRoomCount = 0;
+        PricingService.DiscountRates rates = PricingService.DiscountRates.fromConfig();
         try {
-            PageResult<RoomCard> allCards = catalogService.searchRooms(pr, date);
-            totalRoomCount = allCards.getItems().size();
-
-            if (selectedSlotCodes != null && !selectedSlotCodes.isEmpty()) {
-                result = catalogService.searchRooms(pr, date, selectedSlotCodes);
-                availableRoomCount = result.getItems().size();
-            } else {
-                result = allCards;
-                int countAvail = 0;
-                for (RoomCard c : allCards.getItems()) {
-                    if (c.isBookable()) {
-                        boolean any = false;
-                        if (c.getSlots() != null) {
-                            for (SlotAvailability sa : c.getSlots()) {
-                                if (sa.isSelectable()) { any = true; break; }
-                            }
-                        }
-                        if (any) countAvail++;
-                    }
-                }
-                availableRoomCount = countAvail;
+            List<RoomCard> allCards = catalogService.searchRooms(pr, date).getItems();
+            for (RoomCard c : allCards) {
+                capacityOptions.add(c.getRoom().getCapacity());
+                floorOptions.add(c.getRoom().getFloorNumber());
+            }
+            for (RoomCard c : allCards) {
+                if (minCapacity != null && c.getRoom().getCapacity() < minCapacity) continue;
+                if (floor != null && c.getRoom().getFloorNumber() != floor) continue;
+                RoomListItem item = buildListItem(c, selectedSlotCodes, date, rates);
+                item.setDetailUrl(ctx + "/rooms/detail?id=" + c.getRoom().getRoomId() + "&date=" + date
+                        + (selectedSlotCodes.isEmpty() ? "" : "&slots=" + state.getSlotsCsv()));
+                items.add(item);
             }
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Failed to load room catalog from database", e);
-            result = new PageResult<>(Collections.<RoomCard>emptyList(), 0, pr);
             req.setAttribute("dbError", "Rooms could not be loaded. Please try again later.");
         }
 
-        req.setAttribute("result", result);
+        sortItems(items, sort);
+        totalRoomCount = items.size();
+        for (RoomListItem it : items) {
+            if (it.isAvailable()) availableRoomCount++;
+        }
+        List<RoomListItem> shown = new ArrayList<>();
+        for (RoomListItem it : items) {
+            if (!availableOnly || it.isAvailable()) shown.add(it);
+        }
+
+        // Status line + active filter chips (each removable) + clear all
+        DateTimeFormatter longFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        String statusLine = availableRoomCount + " of " + totalRoomCount + " rooms available · " + date.format(longFmt)
+                + (selectedSlotCodes.isEmpty() ? "" : " · " + RoomFilter.slotLabels(selectedSlotCodes));
+        List<FilterChip> chips = new ArrayList<>();
+        if (!date.isEqual(today)) {
+            chips.add(new FilterChip(date.format(longFmt), "Remove date filter",
+                    state.withDate(today.toString(), today.toString()).url(roomsPath)));
+        }
+        if (!selectedSlotCodes.isEmpty()) {
+            chips.add(new FilterChip(RoomFilter.slotLabels(selectedSlotCodes).replace(", ", " + "), "Remove time slots",
+                    state.withSlots(null).url(roomsPath)));
+        }
+        if (minCapacity != null) {
+            chips.add(new FilterChip(minCapacity + "+ guests", "Remove capacity filter", state.withMinCapacity(null).url(roomsPath)));
+        }
+        if (floor != null) {
+            chips.add(new FilterChip("Floor " + floor, "Remove floor filter", state.withFloor(null).url(roomsPath)));
+        }
+        if (availableOnly) {
+            chips.add(new FilterChip("Available only", "Show unavailable rooms too", state.withAvailableOnly(false).url(roomsPath)));
+        }
+
+        req.setAttribute("rooms", shown);
         req.setAttribute("totalRoomCount", totalRoomCount);
         req.setAttribute("availableRoomCount", availableRoomCount);
+        req.setAttribute("statusLine", statusLine);
+        req.setAttribute("chips", chips);
+        req.setAttribute("clearAllUrl", roomsPath);
+        req.setAttribute("capacityOptions", new ArrayList<>(capacityOptions));
+        req.setAttribute("floorOptions", new ArrayList<>(floorOptions));
+        req.setAttribute("filterState", state);
         req.setAttribute("selectedSlots", selectedSlotCodes);
-        req.setAttribute("selectedSlotsStr", String.join(",", selectedSlotCodes));
+        req.setAttribute("selectedSlotsStr", state.getSlotsCsv());
         req.setAttribute("weekStart", weekStart);
         req.setAttribute("weekDays", weekDays);
-        req.setAttribute("prevWeekStart", prevWeekStart);
-        req.setAttribute("nextWeekStart", nextWeekStart);
+        req.setAttribute("prevWeekUrl", state.withDate(prevWeekStart.toString(), prevWeekStart.toString()).url(roomsPath));
+        req.setAttribute("nextWeekUrl", state.withDate(nextWeekStart.toString(), nextWeekStart.toString()).url(roomsPath));
         req.setAttribute("canGoPrev", canGoPrev);
         req.setAttribute("canGoNext", canGoNext);
         req.setAttribute("date", date);
         req.setAttribute("today", today);
         req.setAttribute("maxDate", maxDate);
-        req.setAttribute("errors", errors);
-        req.setAttribute("rates", PricingService.DiscountRates.fromConfig());
-        String curCap = pr.getFilter("minCapacity");
-        String curFloor = pr.getFilter("floor");
-        String curSort = (pr.getSort() != null) ? pr.getSort() : "room";
-        String curDir = (pr.getDir() != null) ? pr.getDir() : "ASC";
-        req.setAttribute("currentCap", curCap);
-        req.setAttribute("currentFloor", curFloor);
-        req.setAttribute("currentSort", curSort);
-        req.setAttribute("currentDir", curDir);
-        req.setAttribute("activeSortLabel", util.ElFunctions.sortLabel(curSort, curDir));
+        req.setAttribute("rates", rates);
+        req.setAttribute("currentCap", minCapacity == null ? "" : String.valueOf(minCapacity));
+        req.setAttribute("currentFloor", floor == null ? "" : String.valueOf(floor));
+        req.setAttribute("currentSort", sort);
+        req.setAttribute("activeSortLabel", RoomFilter.sortLabel(sort));
+        req.setAttribute("availableOnly", availableOnly);
 
         req.getRequestDispatcher("/WEB-INF/views/publicsite/rooms.jsp").forward(req, resp);
+    }
+
+    private static String[] concat(String[] values, String extra) {
+        List<String> all = new ArrayList<>();
+        if (values != null) {
+            Collections.addAll(all, values);
+        }
+        if (extra != null) {
+            all.add(extra);
+        }
+        return all.toArray(new String[0]);
+    }
+
+    /**
+     * Availability, reason and price of one room card for the current selection.
+     * The price comes from PricingService.quote, the same code as the booking summary.
+     */
+    private RoomListItem buildListItem(RoomCard card, List<String> selected, LocalDate date,
+                                       PricingService.DiscountRates rates) {
+        RoomListItem item = new RoomListItem(card);
+        Map<String, SlotAvailability> byCode = new HashMap<>();
+        List<RoomSlot> roomSlots = new ArrayList<>();
+        if (card.getSlots() != null) {
+            for (SlotAvailability sa : card.getSlots()) {
+                if (sa.getSlot() != null && sa.getSlot().getSlotCode() != null) {
+                    byCode.put(sa.getSlot().getSlotCode().toUpperCase(), sa);
+                    roomSlots.add(sa.getSlot());
+                }
+            }
+        }
+
+        if (selected.isEmpty()) {
+            boolean any = false;
+            for (SlotAvailability sa : byCode.values()) {
+                if (sa.isSelectable()) { any = true; break; }
+            }
+            item.setAvailable(card.isBookable() && any);
+            if (!card.isBookable()) {
+                item.setReason("Under maintenance");
+            } else if (!any) {
+                item.setReason("No free slots on " + date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+            }
+            return item;
+        }
+
+        List<String> missing = new ArrayList<>();
+        for (String code : selected) {
+            SlotAvailability sa = byCode.get(code);
+            if (sa == null || !sa.isSelectable()) {
+                missing.add(code);
+            }
+        }
+        item.setAvailable(card.isBookable() && missing.isEmpty());
+        if (!card.isBookable()) {
+            item.setReason("Under maintenance");
+        } else if (!missing.isEmpty()) {
+            item.setReason("Unavailable for " + RoomFilter.slotLabels(missing));
+        }
+
+        // Real times of this room for the selected slots, e.g. "09:30 → 19:30" or "16:30 → 09:00 (+1 day)"
+        SlotAvailability first = byCode.get(selected.get(0));
+        SlotAvailability last = byCode.get(selected.get(selected.size() - 1));
+        if (first != null && last != null && first.getStartAt() != null && last.getEndAt() != null) {
+            DateTimeFormatter hm = DateTimeFormatter.ofPattern("HH:mm");
+            String t = first.getStartAt().format(hm) + " → " + last.getEndAt().format(hm);
+            if (last.getEndAt().toLocalDate().isAfter(first.getStartAt().toLocalDate())) {
+                t += " (+1 day)";
+            }
+            item.setTimeText(t);
+        }
+
+        try {
+            model.Booking.Quote q = pricingService.quote(roomSlots, selected, rates);
+            item.setQuoteTotal(q.getTotal());
+            item.setDiscountPercent(q.getDiscountPercent());
+            item.setSlotCount(selected.size());
+        } catch (Exception e) {
+            // Slot not offered by this room: no combined price, the reason already explains it.
+            item.setQuoteTotal(-1);
+        }
+        return item;
+    }
+
+    /** Sort by the chosen key, then move unavailable rooms to the end (stable). */
+    private static void sortItems(List<RoomListItem> items, final String sort) {
+        java.util.Comparator<RoomListItem> byRoom = new java.util.Comparator<RoomListItem>() {
+            @Override
+            public int compare(RoomListItem a, RoomListItem b) {
+                return String.valueOf(a.getCard().getRoom().getRoomNumber())
+                        .compareToIgnoreCase(String.valueOf(b.getCard().getRoom().getRoomNumber()));
+            }
+        };
+        java.util.Comparator<RoomListItem> cmp;
+        if (RoomFilter.SORT_PRICE.equals(sort) || RoomFilter.SORT_PRICE_DESC.equals(sort)) {
+            final int sign = RoomFilter.SORT_PRICE.equals(sort) ? 1 : -1;
+            cmp = new java.util.Comparator<RoomListItem>() {
+                @Override
+                public int compare(RoomListItem a, RoomListItem b) {
+                    return sign * Long.compare(a.getSortPrice(), b.getSortPrice());
+                }
+            };
+        } else if (RoomFilter.SORT_CAPACITY.equals(sort)) {
+            cmp = new java.util.Comparator<RoomListItem>() {
+                @Override
+                public int compare(RoomListItem a, RoomListItem b) {
+                    return Integer.compare(b.getCard().getRoom().getCapacity(), a.getCard().getRoom().getCapacity());
+                }
+            };
+        } else {
+            cmp = byRoom;
+        }
+        Collections.sort(items, cmp.thenComparing(byRoom));
+        Collections.sort(items, new java.util.Comparator<RoomListItem>() {
+            @Override
+            public int compare(RoomListItem a, RoomListItem b) {
+                return Boolean.compare(!a.isAvailable(), !b.isAvailable());
+            }
+        });
     }
 
     // =========================================================================
@@ -275,7 +367,7 @@ public class RoomPublicServlet extends HttpServlet {
             return;
         }
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = util.ClockService.now().toLocalDate();
         int maxDays = AppConstants.MAX_ADVANCE_BOOKING_DAYS;
         LocalDate maxDate = today.plusDays(maxDays);
 
@@ -329,7 +421,7 @@ public class RoomPublicServlet extends HttpServlet {
                     }
                 }
             }
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = util.ClockService.now();
 
             for (int i = 0; i < 7; i++) {
                 LocalDate d = startDate.plusDays(i);
@@ -376,6 +468,13 @@ public class RoomPublicServlet extends HttpServlet {
         }
 
         req.setAttribute("card", card);
+        // Rooms page "View Room & Availability" passes date + slots; the slot picker preselects them (R4)
+        req.setAttribute("preselectDate", date.toString());
+        req.setAttribute("preselectSlots", String.join(",",
+                RoomFilter.firstConsecutiveRun(RoomFilter.parseSlots(req.getParameterValues("slots")))));
+        // 48-hour cancellation line in the booking summary (R3): virtual "now" + window for cancel-policy.js
+        req.setAttribute("clockNowIso", util.ClockService.now().withNano(0).toString());
+        req.setAttribute("cancelFreeHours", AppConstants.CANCEL_FREE_HOURS);
         req.setAttribute("weekSchedule", weekSchedule);
         req.setAttribute("reviews", safeReviews);
         req.setAttribute("topReviews", topReviews);
@@ -393,6 +492,8 @@ public class RoomPublicServlet extends HttpServlet {
         req.setAttribute("canGoNext", canGoNext);
         req.setAttribute("startDateFormatted", startDate.format(dtf));
         req.setAttribute("endDateFormatted", startDate.plusDays(6).format(dtf));
+        // R5: one week control "‹ 25 – 31 Oct ›"
+        req.setAttribute("weekRangeLabel", RoomFilter.weekRangeLabel(startDate, startDate.plusDays(6)));
         req.setAttribute("loggedInGuest", loggedInGuest);
         req.setAttribute("currentDetailUrl", "/rooms/detail?id=" + roomId + "&date=" + date + "&weekStart=" + startDate);
 
@@ -478,5 +579,76 @@ public class RoomPublicServlet extends HttpServlet {
         public boolean isActive() {
             return active;
         }
+
+        /** Link that keeps every other filter (R4). */
+        private String url;
+
+        public String getUrl() {
+            return url;
+        }
+
+        public void setUrl(String url) {
+            this.url = url;
+        }
+    }
+
+    /** One room on the Rooms page for the current date/slot selection (R4). */
+    public static class RoomListItem implements Serializable {
+        private static final long serialVersionUID = 1L;
+        private final RoomCard card;
+        private boolean available;
+        private String reason;
+        private String timeText;
+        private long quoteTotal = -1;
+        private int discountPercent;
+        private int slotCount;
+        private String detailUrl;
+
+        public RoomListItem(RoomCard card) {
+            this.card = card;
+        }
+
+        public RoomCard getCard() { return card; }
+        public boolean isAvailable() { return available; }
+        public void setAvailable(boolean available) { this.available = available; }
+        /** Plain-words reason when unavailable, e.g. "Unavailable for Morning, Afternoon". */
+        public String getReason() { return reason; }
+        public void setReason(String reason) { this.reason = reason; }
+        /** This room's real times for the selected slots, e.g. "09:30 → 19:30". */
+        public String getTimeText() { return timeText; }
+        public void setTimeText(String timeText) { this.timeText = timeText; }
+        /** Total for the selected slots from PricingService.quote, or -1 when no slots are selected. */
+        public long getQuoteTotal() { return quoteTotal; }
+        public void setQuoteTotal(long quoteTotal) { this.quoteTotal = quoteTotal; }
+        public boolean isHasQuote() { return quoteTotal >= 0; }
+        public int getDiscountPercent() { return discountPercent; }
+        public void setDiscountPercent(int discountPercent) { this.discountPercent = discountPercent; }
+        public int getSlotCount() { return slotCount; }
+        public void setSlotCount(int slotCount) { this.slotCount = slotCount; }
+        public String getDetailUrl() { return detailUrl; }
+        public void setDetailUrl(String detailUrl) { this.detailUrl = detailUrl; }
+
+        /** Price used for sorting: the selection total when known, else the "from" price. */
+        public long getSortPrice() {
+            return quoteTotal >= 0 ? quoteTotal : card.getMinPrice();
+        }
+    }
+
+    /** Removable active-filter chip (R4). */
+    public static class FilterChip implements Serializable {
+        private static final long serialVersionUID = 1L;
+        private final String label;
+        private final String removeLabel;
+        private final String removeUrl;
+
+        public FilterChip(String label, String removeLabel, String removeUrl) {
+            this.label = label;
+            this.removeLabel = removeLabel;
+            this.removeUrl = removeUrl;
+        }
+
+        public String getLabel() { return label; }
+        public String getRemoveLabel() { return removeLabel; }
+        public String getRemoveUrl() { return removeUrl; }
     }
 }

@@ -2,180 +2,135 @@
 <%@ taglib prefix="e" uri="/WEB-INF/tld/smartstay.tld" %>
 <%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
 <t:layout title="Alert Thresholds" active="thresholds">
-    <!-- Boutique Breadcrumb Navigation -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb boutique-breadcrumb m-0">
-            <li class="breadcrumb-item">
-                <a href="${pageContext.request.contextPath}/admin/dashboard" class="boutique-breadcrumb-link">
-                    <i class="bi bi-house-door me-1"></i>Dashboard
-                </a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">Alert Thresholds</li>
-        </ol>
-    </nav>
-
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <%-- V3: same anatomy as the other admin lists; Delete moves into the "⋯" menu (app.js data-confirm kept). --%>
+    <div class="ss-page-header">
         <div>
-            <h1 class="h2 mb-1">Alert thresholds</h1>
-            <p class="text-muted small mb-0">Configure sensor metric rules and alert severities</p>
+            <h1 class="ss-page-header__title">Alert rules</h1>
+            <p class="ss-page-header__subtitle">When a sensor reading crosses a rule, an alert is raised with that severity.</p>
         </div>
-        <div>
-            <a href="${pageContext.request.contextPath}/admin/thresholds/edit" class="btn btn-primary btn-sm">
-                + New threshold
-            </a>
-        </div>
+        <a href="${pageContext.request.contextPath}/admin/thresholds/edit" class="btn btn-primary btn-sm">New rule</a>
     </div>
 
     <t:if test="${not empty dbError}">
         <div class="alert alert-danger" role="alert">${e:esc(dbError)}</div>
     </t:if>
 
-    <div class="card mb-4 shadow-sm">
-        <div class="card-body">
-            <form action="${pageContext.request.contextPath}/admin/thresholds" method="get" class="row g-2 align-items-end">
-                <input type="hidden" name="sort" value="${e:esc(pr.sort)}">
-                <input type="hidden" name="dir" value="${e:esc(pr.dir)}">
-
-                <div class="col-md-3">
-                    <label for="keyword" class="form-label small fw-semibold">Search</label>
-                    <input type="text" class="form-control form-control-sm" id="keyword" name="keyword"
-                           placeholder="Alert type or description..." maxlength="100"
-                           value="${e:esc(pr.keyword)}">
-                </div>
-
-                <div class="col-md-2">
-                    <label for="metric" class="form-label small fw-semibold">Metric</label>
+    <form action="${pageContext.request.contextPath}/admin/thresholds" method="get" class="ss-toolbar">
+        <input type="hidden" name="sort" value="${e:esc(pr.sort)}">
+        <input type="hidden" name="dir" value="${e:esc(pr.dir)}">
+        <t:if test="${not empty pr.getFilter('enabled')}"><input type="hidden" name="enabled" value="${e:esc(pr.getFilter('enabled'))}"></t:if>
+        <div class="ss-toolbar__main">
+            <div class="ss-toolbar__search">
+                <i class="bi bi-search ss-toolbar__search-icon" aria-hidden="true"></i>
+                <label for="keyword" class="visually-hidden">Search rules</label>
+                <input type="search" class="ss-toolbar__search-input" id="keyword" name="keyword" maxlength="100"
+                       placeholder="Alert type or description" value="${e:esc(pr.keyword)}">
+            </div>
+            <div class="ss-toolbar__chips" role="group" aria-label="Rule state">
+                <a class="ss-chip ${empty pr.getFilter('enabled') ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/thresholds?keyword=${e:url(pr.keyword)}&amp;metric=${e:url(pr.getFilter('metric'))}&amp;device=${e:url(pr.getFilter('device'))}">All</a>
+                <a class="ss-chip ${pr.getFilter('enabled') == '1' ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/thresholds?keyword=${e:url(pr.keyword)}&amp;metric=${e:url(pr.getFilter('metric'))}&amp;device=${e:url(pr.getFilter('device'))}&amp;enabled=1">On</a>
+                <a class="ss-chip ${pr.getFilter('enabled') == '0' ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/thresholds?keyword=${e:url(pr.keyword)}&amp;metric=${e:url(pr.getFilter('metric'))}&amp;device=${e:url(pr.getFilter('device'))}&amp;enabled=0">Off</a>
+            </div>
+            <button class="ss-toolbar__more-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#thrMoreFilters"
+                    aria-expanded="${not empty pr.getFilter('metric') || not empty pr.getFilter('device') ? 'true' : 'false'}" aria-controls="thrMoreFilters">
+                <i class="bi bi-sliders" aria-hidden="true"></i>More filters
+            </button>
+        </div>
+        <div class="collapse ${not empty pr.getFilter('metric') || not empty pr.getFilter('device') || not empty errors ? 'show' : ''}" id="thrMoreFilters">
+            <div class="ss-toolbar__collapse ss-bk-more">
+                <div class="ss-bk-more__field">
+                    <label for="metric" class="ss-bk-more__label">Sensor reading</label>
                     <select class="form-select form-select-sm ${not empty errors['metric'] ? 'is-invalid' : ''}" id="metric" name="metric">
-                        <option value="">All metrics</option>
-                        <option value="MOTION" ${pr.getFilter('metric') == 'MOTION' || pr.getFilter('metric') == 'PIR_TRIGGER' ? 'selected' : ''}>Motion (MOTION)</option>
+                        <option value="">Any reading</option>
+                        <option value="MOTION" ${pr.getFilter('metric') == 'MOTION' || pr.getFilter('metric') == 'PIR_TRIGGER' ? 'selected' : ''}>Motion</option>
                         <option value="DISTANCE_CM" ${pr.getFilter('metric') == 'DISTANCE_CM' ? 'selected' : ''}>Distance (cm)</option>
-                        <option value="DOOR_OPEN_SECONDS" ${pr.getFilter('metric') == 'DOOR_OPEN_SECONDS' ? 'selected' : ''}>Door Open (sec)</option>
+                        <option value="DOOR_OPEN_SECONDS" ${pr.getFilter('metric') == 'DOOR_OPEN_SECONDS' ? 'selected' : ''}>Door open (seconds)</option>
                     </select>
-                    <t:if test="${not empty errors['metric']}">
-                        <div class="invalid-feedback d-block">${e:esc(errors['metric'])}</div>
-                    </t:if>
+                    <t:if test="${not empty errors['metric']}"><div class="invalid-feedback d-block">${e:esc(errors['metric'])}</div></t:if>
                 </div>
-
-                <div class="col-md-3">
-                    <label for="device" class="form-label small fw-semibold">Device scope</label>
+                <div class="ss-bk-more__field">
+                    <label for="device" class="ss-bk-more__label">Device</label>
                     <select class="form-select form-select-sm ${not empty errors['device'] ? 'is-invalid' : ''}" id="device" name="device">
-                        <option value="">All scopes</option>
-                        <option value="__GLOBAL__" ${pr.getFilter('device') == '__GLOBAL__' ? 'selected' : ''}>Global (All devices)</option>
+                        <option value="">Any device</option>
+                        <option value="__GLOBAL__" ${pr.getFilter('device') == '__GLOBAL__' ? 'selected' : ''}>Rules for all devices</option>
                         <t:forEach items="${devices}" var="dev">
-                            <option value="${dev.deviceId}" ${pr.getFilter('device') == dev.deviceId ? 'selected' : ''}>
-                                ${e:esc(dev.deviceId)} - ${e:esc(dev.deviceName)}
-                            </option>
+                            <option value="${dev.deviceId}" ${pr.getFilter('device') == dev.deviceId ? 'selected' : ''}>${e:esc(dev.deviceName)}</option>
                         </t:forEach>
                     </select>
-                    <t:if test="${not empty errors['device']}">
-                        <div class="invalid-feedback d-block">${e:esc(errors['device'])}</div>
-                    </t:if>
+                    <t:if test="${not empty errors['device']}"><div class="invalid-feedback d-block">${e:esc(errors['device'])}</div></t:if>
                 </div>
-
-                <div class="col-md-2">
-                    <label for="enabled" class="form-label small fw-semibold">Status</label>
-                    <select class="form-select form-select-sm ${not empty errors['enabled'] ? 'is-invalid' : ''}" id="enabled" name="enabled">
-                        <option value="">All</option>
-                        <option value="1" ${pr.getFilter('enabled') == '1' ? 'selected' : ''}>Enabled only</option>
-                        <option value="0" ${pr.getFilter('enabled') == '0' ? 'selected' : ''}>Disabled only</option>
-                    </select>
-                    <t:if test="${not empty errors['enabled']}">
-                        <div class="invalid-feedback d-block">${e:esc(errors['enabled'])}</div>
-                    </t:if>
+                <t:if test="${not empty errors['enabled']}"><div class="invalid-feedback d-block">${e:esc(errors['enabled'])}</div></t:if>
+                <div class="ss-bk-more__actions">
+                    <button type="submit" class="btn btn-primary btn-sm px-3">Apply</button>
+                    <a href="${pageContext.request.contextPath}/admin/thresholds" class="btn btn-outline-soft btn-sm px-3">Clear all</a>
                 </div>
-
-                <div class="col-md-2 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Filter</button>
-                    <a href="${pageContext.request.contextPath}/admin/thresholds" class="btn btn-outline-secondary btn-sm">Reset</a>
-                </div>
-            </form>
+            </div>
         </div>
-    </div>
+    </form>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-body p-0">
+    <div class="ss-dev-table">
+        <t:if test="${empty result.items}">
+            <div class="ss-empty">
+                <i class="bi bi-sliders ss-empty__icon" aria-hidden="true"></i>
+                <p class="ss-empty__title">No rules found</p>
+                <p class="ss-empty__desc">Nothing matches these filters. Add a rule to raise alerts from sensor readings.</p>
+            </div>
+        </t:if>
+        <t:if test="${not empty result.items}">
             <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle mb-0">
-                    <thead class="table-light">
+                <table class="table align-middle mb-0 ss-table">
+                    <thead>
                         <tr>
-                            <th class="ps-3">ID</th>
-                            <th>Device Scope</th>
-                            <th><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/thresholds" column="metric" label="Metric"/></th>
-                            <th>Condition</th>
-                            <th><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/thresholds" column="type" label="Alert Type"/></th>
-                            <th><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/thresholds" column="severity" label="Severity"/></th>
-                            <th>Enabled</th>
-                            <th>Description</th>
-                            <th><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/thresholds" column="updated" label="Updated"/></th>
-                            <th class="pe-3 text-end">Actions</th>
+                            <th scope="col" class="ps-3"><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/thresholds" column="type" label="Alert"/></th>
+                            <th scope="col"><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/thresholds" column="metric" label="Rule"/></th>
+                            <th scope="col">Device</th>
+                            <th scope="col"><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/thresholds" column="severity" label="Severity"/></th>
+                            <th scope="col">State</th>
+                            <th scope="col"><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/thresholds" column="updated" label="Updated"/></th>
+                            <th scope="col" class="pe-3 text-end"><span class="visually-hidden">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <t:if test="${empty result.items}">
-                            <tr>
-                                <td colspan="10" class="text-center py-4 text-muted">
-                                    No alert thresholds found matching your criteria.
-                                </td>
-                            </tr>
-                        </t:if>
                         <t:forEach items="${result.items}" var="t">
-                            <tr>
-                                <td class="ps-3"><code class="fw-bold">#${t.thresholdId}</code></td>
+                            <tr class="${t.enabled ? '' : 'ss-dev-row--off'}">
+                                <td class="ps-3" title="${e:esc(t.description)}">
+                                    <div class="ss-dev__name"><a class="ss-row-link" href="${pageContext.request.contextPath}/admin/thresholds/edit?thresholdId=${t.thresholdId}">${e:esc(e:alertTitle(t.alertType))}</a></div>
+                                </td>
+                                <td class="ss-num text-nowrap">
+                                    ${t.metricType == 'DISTANCE_CM' ? 'Distance' : (t.metricType == 'DOOR_OPEN_SECONDS' ? 'Door open' : 'Motion')}
+                                    <t:if test="${t.operator == 'GT'}">&gt;</t:if><t:if test="${t.operator == 'GTE' || t.operator == 'GE'}">&ge;</t:if><t:if test="${t.operator == 'LT'}">&lt;</t:if><t:if test="${t.operator == 'LTE' || t.operator == 'LE'}">&le;</t:if>
+                                    ${t.thresholdValueFormatted}${t.metricType == 'DISTANCE_CM' ? ' cm' : (t.metricType == 'DOOR_OPEN_SECONDS' ? ' s' : '')}
+                                </td>
+                                <td>${empty t.deviceId ? 'All devices' : e:esc(t.deviceId)}</td>
+                                <td><span class="ss-badge ss-badge--${e:esc(t.severity == null ? 'low' : t.severity.toLowerCase())}">${e:esc(e:humanStatus(t.severity))}</span></td>
                                 <td>
-                                    <t:if test="${empty t.deviceId}">
-                                        <span class="badge bg-secondary">All devices</span>
-                                    </t:if>
-                                    <t:if test="${not empty t.deviceId}">
-                                        <code>${e:esc(t.deviceId)}</code>
-                                    </t:if>
+                                    <span class="ss-dev__status">
+                                        <span class="ss-status-dot ${t.enabled ? 'ss-status-dot--ok' : 'ss-status-dot--muted'}" aria-hidden="true"></span>
+                                        ${t.enabled ? 'On' : 'Off'}
+                                    </span>
                                 </td>
-                                <td>
-                                    <span class="badge bg-light text-dark border">${e:esc(t.metricType)}</span>
-                                </td>
-                                <td>
-                                    <code class="fw-bold text-dark">
-                                        <t:if test="${t.operator == 'GT'}">&gt;</t:if>
-                                        <t:if test="${t.operator == 'GTE' || t.operator == 'GE'}">&gt;=</t:if>
-                                        <t:if test="${t.operator == 'LT'}">&lt;</t:if>
-                                        <t:if test="${t.operator == 'LTE' || t.operator == 'LE'}">&lt;=</t:if>
-                                        ${t.thresholdValue}
-                                    </code>
-                                </td>
-                                <td>
-                                    <span class="fw-semibold">${e:esc(t.alertType)}</span>
-                                </td>
-                                <td>
-                                    <span class="badge-status severity-${e:esc(t.severity)}">${e:esc(t.severity)}</span>
-                                </td>
-                                <td>
-                                    <t:if test="${t.enabled}">
-                                        <span class="badge bg-success">Yes</span>
-                                    </t:if>
-                                    <t:if test="${not t.enabled}">
-                                        <span class="badge bg-secondary">No</span>
-                                    </t:if>
-                                </td>
-                                <td class="small text-muted text-truncate" style="max-width: 200px;">
-                                    ${e:esc(t.description)}
-                                </td>
-                                <td class="small text-muted">
-                                    ${e:datetime(t.updatedAt)}
-                                </td>
-                                <td class="pe-3 text-end">
-                                    <div class="d-inline-flex gap-1 align-items-center">
-                                        <a href="${pageContext.request.contextPath}/admin/thresholds/edit?thresholdId=${t.thresholdId}"
-                                           class="btn btn-outline-primary btn-sm py-0 px-2" title="Edit threshold">
-                                            Edit
-                                        </a>
-
-                                        <form action="${pageContext.request.contextPath}/admin/thresholds/delete" method="post" class="d-inline m-0">
-                                            <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
-                                            <input type="hidden" name="thresholdId" value="${t.thresholdId}">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2"
-                                                    data-confirm="Delete threshold #${t.thresholdId}?" title="Delete threshold">
-                                                Delete
-                                            </button>
-                                        </form>
+                                <td class="ss-act__sub text-nowrap">${e:date(t.updatedAt)}</td>
+                                <td class="pe-3 text-end text-nowrap">
+                                    <div class="dropdown d-inline-block ss-row-menu">
+                                        <button class="btn-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                                aria-label="More actions for the rule ${e:esc(e:alertTitle(t.alertType))}">
+                                            <i class="bi bi-three-dots" aria-hidden="true"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/admin/thresholds/edit?thresholdId=${t.thresholdId}">Edit</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <form action="${pageContext.request.contextPath}/admin/thresholds/delete" method="post" class="m-0">
+                                                    <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                                                    <input type="hidden" name="thresholdId" value="${t.thresholdId}">
+                                                    <button type="submit" class="dropdown-item dropdown-item--destructive"
+                                                            data-confirm="Delete this alert rule? Alerts already raised stay in the inbox.">Delete rule</button>
+                                                </form>
+                                            </li>
+                                        </ul>
                                     </div>
                                 </td>
                             </tr>
@@ -183,7 +138,7 @@
                     </tbody>
                 </table>
             </div>
-        </div>
+        </t:if>
     </div>
 
     <t:pagination result="${result}" baseUrl="${pageContext.request.contextPath}/admin/thresholds"/>

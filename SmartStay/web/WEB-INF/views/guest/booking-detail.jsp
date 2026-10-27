@@ -23,17 +23,17 @@
             <h1 class="h3 fw-bold mb-0">Booking <span class="font-monospace text-primary">${e:esc(detail.booking.bookingCode)}</span></h1>
             <div class="d-flex align-items-center gap-2">
                 <t:if test="${detail.booking.status == 'CHECKED_IN' && detail.booking.earlyCheckin}">
-                    <span class="badge-status status-CHECKED_IN d-inline-flex align-items-center gap-1" data-status="CHECKED_IN">
-                        <i class="bi bi-clock-history"></i> CHECKED_IN &middot; Early Check-in (${detail.booking.earlyCheckinMinutes} mins)
+                    <span class="ss-badge ss-badge--success d-inline-flex align-items-center gap-1" data-status="CHECKED_IN" data-booking-code="${e:esc(detail.booking.bookingCode)}">
+                        <i class="bi bi-clock-history"></i> Checked in early (${detail.booking.earlyCheckinMinutes} min)
                     </span>
                 </t:if>
                 <t:if test="${!(detail.booking.status == 'CHECKED_IN' && detail.booking.earlyCheckin)}">
-                    <span class="badge-status status-${detail.booking.status}" data-status="${detail.booking.status}">
-                        ${e:humanStatus(detail.booking.status)}
+                    <span class="ss-badge ss-badge--${e:guestState(detail.booking).tone}" data-status="${detail.booking.status}" data-booking-code="${e:esc(detail.booking.bookingCode)}">
+                        ${e:guestState(detail.booking).label}
                     </span>
                 </t:if>
-                <t:if test="${detail.booking.paymentStatus != 'NONE' && not empty detail.booking.paymentStatus && detail.booking.paymentStatus != detail.booking.status}">
-                    <span class="badge-status status-${detail.booking.paymentStatus}" data-status="${detail.booking.paymentStatus}">
+                <t:if test="${not empty detail.booking.paymentStatus && detail.booking.paymentStatus != 'NONE' && detail.booking.paymentStatus != 'PAID' && detail.booking.paymentStatus != detail.booking.status}">
+                    <span class="ss-badge ss-badge--${detail.booking.paymentStatus == 'REFUND_PENDING' ? 'warning' : (detail.booking.paymentStatus == 'FAILED' ? 'danger' : 'neutral')}" data-status="${detail.booking.paymentStatus}">
                         ${e:humanStatus(detail.booking.paymentStatus)}
                     </span>
                 </t:if>
@@ -113,7 +113,7 @@
 
                         <t:if test="${not empty detail.booking.expireReason}">
                             <dt class="col-sm-4 text-muted fw-normal">Expiry Reason</dt>
-                            <dd class="col-sm-8 mb-2 text-muted">${e:esc(detail.booking.expireReason)}</dd>
+                            <dd class="col-sm-8 mb-2 text-muted">${e:esc(e:humanStatus(detail.booking.expireReason))}</dd>
                         </t:if>
                     </dl>
                     <div class="border-top pt-3 mt-3 text-muted small">
@@ -127,142 +127,132 @@
                 <div class="card-header bg-white border-bottom py-3">
                     <h2 class="h5 fw-bold mb-0">Reserved Time Slots</h2>
                 </div>
-                <!-- Desktop Table View -->
+                <!-- Desktop Table View (3 calm columns: Slot, Time, Price) -->
                 <div class="card-body p-0 d-none d-md-block">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th scope="col" style="width: 110px;">Slot</th>
-                                    <th scope="col">Name</th>
-                                    <th scope="col">Time Range</th>
+                                    <th scope="col">Slot</th>
+                                    <th scope="col">Time</th>
                                     <th scope="col" class="text-end" style="width: 140px;">Price</th>
-                                    <th scope="col" class="text-center" style="width: 130px;">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <t:forEach items="${detail.slots}" var="s">
                                     <tr>
-                                        <td class="font-monospace fw-bold text-dark">${e:esc(s.slotCode)}</td>
-                                        <td>${e:esc(s.slotName)}</td>
+                                        <td>
+                                            <span class="fw-semibold text-dark">${e:esc(s.slotName)}</span>
+                                            <span class="text-muted small font-monospace ms-1">${e:esc(s.slotCode)}</span>
+                                        </td>
                                         <td class="text-dark">${e:esc(s.timeRange)}</td>
                                         <td class="text-end fw-semibold">${e:money(s.listPrice)}</td>
-                                        <td class="text-center">
-                                            <span class="badge-status status-${s.holdStatus}">${e:humanStatus(s.holdStatus)}</span>
-                                        </td>
                                     </tr>
                                 </t:forEach>
                             </tbody>
-                            <tfoot>
-                                <tr class="table-light fw-bold border-top">
-                                    <td colspan="3" class="text-end text-muted">Total:</td>
-                                    <td class="text-end fs-6 text-primary">${e:money(detail.booking.total)}</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
                         </table>
                     </div>
                 </div>
                 <!-- Mobile Stacked Card View -->
                 <div class="card-body p-3 d-md-none">
-                    <div class="d-flex flex-column gap-3">
+                    <div class="d-flex flex-column gap-2">
                         <t:forEach items="${detail.slots}" var="s">
                             <div class="p-3 bg-light rounded-3 border">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="font-monospace fw-bold text-dark">${e:esc(s.slotCode)} &middot; ${e:esc(s.slotName)}</span>
-                                    <span class="badge-status status-${s.holdStatus}">${e:humanStatus(s.holdStatus)}</span>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div>
+                                        <span class="fw-semibold text-dark">${e:esc(s.slotName)}</span>
+                                        <span class="text-muted small font-monospace ms-1">${e:esc(s.slotCode)}</span>
+                                    </div>
+                                    <span class="fw-semibold text-dark">${e:money(s.listPrice)}</span>
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center text-muted small">
-                                    <span class="text-dark"><i class="bi bi-clock me-1 text-muted"></i>${e:esc(s.timeRange)}</span>
-                                    <span class="fw-bold text-dark fs-6">${e:money(s.listPrice)}</span>
+                                <div class="text-muted small">
+                                    <i class="bi bi-clock me-1 text-muted"></i>${e:esc(s.timeRange)}
                                 </div>
                             </div>
                         </t:forEach>
-                        <div class="p-3 bg-white rounded-3 border d-flex justify-content-between align-items-center">
-                            <span class="fw-bold text-muted">Total Amount:</span>
-                            <span class="fw-bold text-primary fs-6">${e:money(detail.booking.total)}</span>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 3. Check-in Guide Card (Locked when pending payment, full when confirmed) -->
-            <div class="card shadow-sm border-0 booking-card order-mob-guide">
-                <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
-                    <h2 class="h5 fw-bold mb-0">Check-in Guide</h2>
-                    <t:if test="${detail.booking.status == 'PENDING_PAYMENT'}">
-                        <span class="badge bg-light text-muted border"><i class="bi bi-lock-fill me-1"></i>Locked</span>
-                    </t:if>
-                </div>
-                <div class="card-body p-4">
-                    <t:if test="${detail.booking.status == 'PENDING_PAYMENT'}">
-                        <!-- Locked state for pending payment -->
-                        <div class="alert alert-light border d-flex align-items-center gap-3 mb-0" role="status">
-                            <div class="fs-4 text-muted"><i class="bi bi-lock-fill"></i></div>
-                            <div>
-                                <div class="fw-semibold text-dark">Check-in instructions locked</div>
-                                <div class="text-muted small">Detailed check-in instructions will be available after payment.</div>
-                            </div>
-                        </div>
-                    </t:if>
-
-                    <t:if test="${detail.booking.status != 'PENDING_PAYMENT'}">
-                        <!-- Full check-in instructions for confirmed bookings -->
-                        <div class="row g-3 mb-3">
-                            <div class="col-sm-6">
-                                <span class="text-muted small fw-medium">Assigned Room:</span>
-                                <div class="fw-bold text-dark fs-6">${e:esc(detail.room.displayTitle)}</div>
-                                <div class="text-muted small">Room ${e:esc(detail.room.roomNumber)} &middot; Floor ${detail.room.floorNumber}</div>
-                            </div>
-                            <div class="col-sm-6">
-                                <span class="text-muted small fw-medium">Location / Directions:</span>
-                                <div class="text-dark small">${e:esc(detail.room.locationDescription)}</div>
-                            </div>
-                        </div>
-
-                        <!-- Restyled Neutral Access Instructions Info Box -->
-                        <div class="mb-3">
-                            <span class="text-muted small fw-medium d-block mb-1">Access Instructions:</span>
-                            <div class="bg-light p-3 rounded-3 border small">
-                                <div class="d-flex align-items-start gap-2">
-                                    <i class="bi bi-info-circle text-primary mt-1"></i>
-                                    <div class="text-dark">${e:esc(areaInstruction)}</div>
+            <!-- 3. Check-in Guide Card (Only shown ahead or in progress: PENDING_PAYMENT, CONFIRMED, CHECKED_IN) -->
+            <t:if test="${detail.booking.status == 'PENDING_PAYMENT' || detail.booking.status == 'CONFIRMED' || detail.booking.status == 'CHECKED_IN'}">
+                <div class="card shadow-sm border-0 booking-card order-mob-guide">
+                    <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+                        <h2 class="h5 fw-bold mb-0">Check-in Guide</h2>
+                        <t:if test="${detail.booking.status == 'PENDING_PAYMENT'}">
+                            <span class="badge bg-light text-muted border"><i class="bi bi-lock-fill me-1"></i>Locked</span>
+                        </t:if>
+                    </div>
+                    <div class="card-body p-4">
+                        <t:if test="${detail.booking.status == 'PENDING_PAYMENT'}">
+                            <!-- Locked state for pending payment -->
+                            <div class="alert alert-light border d-flex align-items-center gap-3 mb-0" role="status">
+                                <div class="fs-4 text-muted"><i class="bi bi-lock-fill"></i></div>
+                                <div>
+                                    <div class="fw-semibold text-dark">Check-in instructions locked</div>
+                                    <div class="text-muted small">Detailed check-in instructions will be available after payment.</div>
                                 </div>
                             </div>
-                        </div>
+                        </t:if>
 
-                        <!-- Restyled Amber Warning Box -->
-                        <div class="alert alert-warning border small d-flex align-items-start gap-2 mb-0" role="note"
-                             style="background-color: #FFFDF0; border-color: #FFE082; color: #8D5B00;">
-                            <i class="bi bi-exclamation-triangle-fill text-warning mt-1 fs-6"></i>
-                            <div>${e:esc(disclaimer)}</div>
-                        </div>
-                    </t:if>
+                        <t:if test="${detail.booking.status == 'CONFIRMED' || detail.booking.status == 'CHECKED_IN'}">
+                            <!-- Full check-in instructions: room once on one line, then location, then access instructions, then warning box -->
+                            <div class="mb-3">
+                                <div class="fw-semibold text-dark fs-6">
+                                    ${e:esc(detail.room.displayTitle)} &middot; Room ${e:esc(detail.room.roomNumber)} &middot; Floor ${detail.room.floorNumber}
+                                </div>
+                                <t:if test="${not empty detail.room.locationDescription}">
+                                    <div class="text-muted small mt-1">
+                                        ${e:esc(detail.room.locationDescription)}
+                                    </div>
+                                </t:if>
+                            </div>
+
+                            <!-- Neutral Access Instructions Info Box -->
+                            <div class="mb-3">
+                                <span class="text-muted small fw-medium d-block mb-1">Access Instructions:</span>
+                                <div class="bg-light p-3 rounded-3 border small">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <i class="bi bi-info-circle text-primary mt-1"></i>
+                                        <div class="text-dark">${e:esc(areaInstruction)}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Amber Warning Box -->
+                            <div class="alert alert-warning border small d-flex align-items-start gap-2 mb-0" role="note"
+                                 style="background-color: #FFFDF0; border-color: #FFE082; color: #8D5B00;">
+                                <i class="bi bi-exclamation-triangle-fill text-warning mt-1 fs-6"></i>
+                                <div>${e:esc(disclaimer)}</div>
+                            </div>
+                        </t:if>
+                    </div>
                 </div>
-            </div>
+            </t:if>
 
             <!-- Smart Entrance PIN Section (When credentials available) -->
             <t:if test="${credential != null}">
-                <div class="card shadow-sm border-0 booking-card order-mob-pin">
-                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                        <h2 class="h5 fw-bold mb-0">Main Entrance Access PIN</h2>
-                        <span class="badge-status status-${credential.status}">${e:humanStatus(credential.status)}</span>
+                <%-- V2 signature moment 2: the same Digital Keycard as on the payment result page --%>
+                <div class="booking-card order-mob-pin ss-pin-vault" id="booking-pin" aria-labelledby="bookingPinTitle">
+                    <div class="ss-pin-vault__header">
+                        <h2 class="ss-pin-vault__brand mb-0" id="bookingPinTitle">Tini SmartStay keycard</h2>
+                        <span class="ss-pin-vault__state">${e:humanStatus(credential.status)}</span>
                     </div>
-                    <div class="card-body text-center p-4">
+                    <div>
                         <t:if test="${not empty shownPin}">
-                            <div class="mb-2 text-muted small">Your Smart Lock Access PIN:</div>
-                            <div class="display-4 font-monospace fw-bold text-primary my-2 tracking-wide">${e:esc(shownPin)}</div>
-                            <div class="small text-muted mb-2">
-                                Valid from <strong>${e:datetime(pinValidFrom)}</strong> to <strong>${e:datetime(pinValidUntil)}</strong>
+                            <div class="ss-pin-vault__label">Main entrance door PIN</div>
+                            <div class="ss-pin-vault__display">
+                                <div class="ss-pin-vault__digits ss-pin-vault__digits--reveal">${e:esc(shownPin)}</div>
                             </div>
-                            <div class="text-secondary small">
-                                Valid for the whole stay, including gaps between your slots.
+                            <div class="ss-pin-vault__meta">
+                                <span>Works from <strong>${e:datetime(pinValidFrom)}</strong> until <strong>${e:datetime(pinValidUntil)}</strong></span>
+                                <span>One code for the whole stay, including gaps between your slots.</span>
                             </div>
                         </t:if>
 
                         <t:if test="${empty shownPin && pinAvailable}">
-                            <p class="text-muted small mb-3">
-                                Your smart lock PIN has been issued. Click below to reveal your entry PIN code.
+                            <p class="ss-pin-vault__note mb-3">
+                                Your door PIN is ready. It stays hidden until you choose to show it.
                             </p>
                             <form action="${pageContext.request.contextPath}/guest/bookings/pin" method="post" class="d-inline">
                                 <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
@@ -407,6 +397,7 @@
             <t:if test="${detail.canCancel}">
                 <div class="card shadow-sm border-0 booking-card order-mob-cancel">
                     <div class="card-body p-3 text-center">
+                        <t:cancelLine booking="${detail}" cssClass="text-start mb-2"/>
                         <button type="button" class="btn btn-link text-decoration-none text-muted p-0 small"
                                 data-bs-toggle="collapse" data-bs-target="#cancelBookingCollapse"
                                 aria-expanded="false" aria-controls="cancelBookingCollapse" id="toggleCancelBtn">
@@ -415,6 +406,9 @@
                         <div class="collapse mt-3 text-start border-top pt-3" id="cancelBookingCollapse">
                             <p class="text-muted small mb-2">
                                 You can cancel this booking and release your reserved time slots before the first slot starts.
+                                <t:if test="${e:cancellationInfo(detail).outcome == 'FULL_REFUND'}">Cancelling now refunds you in full.</t:if>
+                                <t:if test="${e:cancellationInfo(detail).outcome == 'NO_REFUND'}">Cancelling now gives no refund.</t:if>
+                                <t:if test="${e:cancellationInfo(detail).outcome == 'NOTHING_PAID'}">Nothing has been charged yet.</t:if>
                             </p>
                             <div class="mb-3">
                                 <label for="cancelReasonInput" class="form-label small fw-semibold text-muted">Cancellation reason (optional)</label>
@@ -444,9 +438,18 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body py-4">
-                        <p class="mb-0">
+                        <p class="mb-2">
                             Cancel booking <strong>${e:esc(detail.booking.bookingCode)}</strong>? Your reserved slots will be released.
                         </p>
+                        <t:if test="${e:cancellationInfo(detail).outcome == 'FULL_REFUND'}">
+                            <p class="mb-0 ss-cancel-outcome ss-cancel-outcome--refund">You will be refunded in full within 1 to 3 business days.</p>
+                        </t:if>
+                        <t:if test="${e:cancellationInfo(detail).outcome == 'NO_REFUND'}">
+                            <p class="mb-0 ss-cancel-outcome ss-cancel-outcome--none">This booking is non-refundable. Cancel anyway?</p>
+                        </t:if>
+                        <t:if test="${e:cancellationInfo(detail).outcome == 'NOTHING_PAID'}">
+                            <p class="mb-0 ss-cancel-outcome">Nothing has been charged, so there is nothing to refund.</p>
+                        </t:if>
                     </div>
                     <div class="modal-footer border-top bg-light py-2 d-flex justify-content-end gap-2">
                         <button type="button" class="btn btn-light px-3 btn-touch-target" data-bs-dismiss="modal">

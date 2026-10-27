@@ -592,7 +592,18 @@ public final class ElFunctions {
             }
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        // Log / heartbeat timestamps are REAL time (see docs/time-inventory.md)
+        return relativeTime(dt, LocalDateTime.now());
+    }
+
+    /**
+     * Pure relative-time text used by timeAgo (R10, unit-tested): "just now", "5 min ago",
+     * "2 hours ago", "3 days ago", "2 months ago". Future times read "just now".
+     */
+    public static String relativeTime(LocalDateTime dt, LocalDateTime now) {
+        if (dt == null || now == null) {
+            return "-";
+        }
         java.time.Duration diff = java.time.Duration.between(dt, now);
         long seconds = diff.getSeconds();
         if (seconds < 0 || seconds < 60) {
@@ -624,5 +635,100 @@ public final class ElFunctions {
             return "1 month ago";
         }
         return months + " months ago";
+    }
+
+    // =========================================================================
+    // CANCELLATION POLICY (Task R3)
+    // =========================================================================
+
+    /**
+     * 48-hour cancellation info for a Booking or BookingDetail, using the virtual clock:
+     * ${e:cancellationInfo(b).refundable}, .deadline, .outcome, .nothingPaid, .known.
+     */
+    public static CancellationPolicy.Info cancellationInfo(Object booking) {
+        model.Booking b = null;
+        if (booking instanceof model.Booking) {
+            b = (model.Booking) booking;
+        } else if (booking instanceof model.BookingDetail) {
+            b = ((model.BookingDetail) booking).getBooking();
+        }
+        if (b == null) {
+            return CancellationPolicy.info(null, null, ClockService.now());
+        }
+        return CancellationPolicy.info(b.getStatus(), b.getCheckinAt(), ClockService.now());
+    }
+
+    /** Hours of free cancellation before the first slot (AppConstants.CANCEL_FREE_HOURS). */
+    public static int cancelFreeHours() {
+        return AppConstants.CANCEL_FREE_HOURS;
+    }
+
+    // =========================================================================
+    // GUEST BOOKING DISPLAY (Task R5)
+    // =========================================================================
+
+    /** "16:30 → 09:00 (+1 day)" from two date-times. */
+    public static String stayTimes(Object start, Object end) {
+        return BookingState.stayTimes(toLocalDateTime(start), toLocalDateTime(end));
+    }
+
+    /** "25/10 · 16:30 → 09:00 (+1 day)" from two date-times. */
+    public static String stayLine(Object start, Object end) {
+        return BookingState.stayLine(toLocalDateTime(start), toLocalDateTime(end));
+    }
+
+    /** "Evening + Overnight" from "S3+S4" or from a list of BookingDetail slot rows. */
+    public static String slotNames(Object slots) {
+        if (slots instanceof String) {
+            return BookingState.slotNames((String) slots);
+        }
+        if (slots instanceof Iterable) {
+            List<String> names = new ArrayList<>();
+            for (Object o : (Iterable<?>) slots) {
+                if (o instanceof model.BookingDetail.BookingSlotRow) {
+                    names.add(((model.BookingDetail.BookingSlotRow) o).getSlotName());
+                } else if (o instanceof model.RoomSlot) {
+                    names.add(((model.RoomSlot) o).getSlotName());
+                } else if (o != null) {
+                    names.add(String.valueOf(o));
+                }
+            }
+            return BookingState.joinNames(names);
+        }
+        return "";
+    }
+
+    /** ONE admin badge (booking + payment) for a Booking: ${e:adminState(b).label} (R7). */
+    public static BookingState adminState(Object booking) {
+        if (booking instanceof model.BookingDetail) {
+            booking = ((model.BookingDetail) booking).getBooking();
+        }
+        if (booking instanceof model.Booking) {
+            model.Booking b = (model.Booking) booking;
+            return BookingState.admin(b.getStatus(), b.getPaymentStatus(), b.getExpireReason());
+        }
+        return BookingState.admin(null, null, null);
+    }
+
+    /** "26/10 · Morning + Afternoon · 09:30 → 19:30" from check-in, check-out and slot codes (R7). */
+    public static String slotLine(Object start, Object end, Object slots) {
+        return BookingState.slotLine(toLocalDateTime(start), toLocalDateTime(end), slotNames(slots));
+    }
+
+    /** One friendly guest state (label, tone, action) for a Booking: ${e:guestState(b).label}. */
+    public static BookingState guestState(Object booking) {
+        if (booking instanceof model.BookingDetail) {
+            booking = ((model.BookingDetail) booking).getBooking();
+        }
+        if (booking instanceof model.Booking) {
+            model.Booking b = (model.Booking) booking;
+            return BookingState.of(b.getStatus(), b.getPaymentStatus());
+        }
+        return BookingState.of(null, null);
+    }
+
+    /** R12: plain-words alert title for EL (one central map: util.AlertTitles). */
+    public static String alertTitle(Object alertType) {
+        return AlertTitles.title(alertType == null ? null : alertType.toString());
     }
 }

@@ -2,200 +2,159 @@
 <%@ taglib prefix="e" uri="/WEB-INF/tld/smartstay.tld" %>
 <%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
 <t:layout title="Devices" active="devices">
-    <!-- Boutique Breadcrumb Navigation -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb boutique-breadcrumb m-0">
-            <li class="breadcrumb-item">
-                <a href="${pageContext.request.contextPath}/admin/dashboard" class="boutique-breadcrumb-link">
-                    <i class="bi bi-house-door me-1"></i>Dashboard
-                </a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">Devices</li>
-        </ol>
-    </nav>
-
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <%-- R9: summary line, rows grouped by zone, status dot + text, one visible action (Edit);
+         API key and Delete live in the ⋯ menu and still open the existing confirm modals. --%>
+    <div class="ss-page-header">
         <div>
-            <h1 class="h2 mb-1 text-espresso">Device management</h1>
-            <p class="text-muted small mb-0">Configure smart locks and security cameras</p>
+            <h1 class="ss-page-header__title">Devices</h1>
+            <p class="ss-page-header__subtitle ss-dev-summary">
+                <span class="${deviceCounts['FAULT'] > 0 ? 'ss-dev-summary__bad' : ''}">${deviceCounts['FAULT']} fault</span>
+                <span aria-hidden="true">&middot;</span>
+                <span class="${deviceCounts['OFFLINE'] > 0 ? 'ss-dev-summary__warn' : ''}">${deviceCounts['OFFLINE']} offline</span>
+                <span aria-hidden="true">&middot;</span>
+                <span>${deviceCounts['ONLINE']} online</span>
+            </p>
+            <%-- Confirmation pushed by the lock (realtime DEVICE_ACK) after a remote Unlock / Silence --%>
+            <p class="ss-dev-ack" id="deviceAck" role="status" aria-live="polite" hidden></p>
         </div>
-        <div>
-            <a href="${pageContext.request.contextPath}/admin/devices/edit" class="btn btn-primary btn-sm">
-                + New device
-            </a>
-        </div>
+        <a href="${pageContext.request.contextPath}/admin/devices/edit" class="btn btn-primary btn-sm rounded-pill px-3">
+            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>New device
+        </a>
     </div>
 
     <t:if test="${not empty dbError}">
         <div class="alert alert-danger" role="alert">${e:esc(dbError)}</div>
     </t:if>
 
-    <!-- Mobile Filter Toggle Button (< 768px) -->
-    <div class="d-md-none mb-3">
-        <button class="btn btn-outline-secondary btn-sm w-100 d-flex justify-content-between align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#deviceFilterCollapse" aria-expanded="false" aria-controls="deviceFilterCollapse">
-            <span><i class="bi bi-funnel me-1"></i> Filters &amp; Search</span>
-            <i class="bi bi-chevron-down"></i>
-        </button>
-    </div>
-
-    <div class="card mb-4 shadow-sm collapse d-md-block" id="deviceFilterCollapse">
-        <div class="card-body">
-            <form action="${pageContext.request.contextPath}/admin/devices" method="get" class="row g-2 align-items-end">
-                <input type="hidden" name="sort" value="${e:esc(pr.sort)}">
-                <input type="hidden" name="dir" value="${e:esc(pr.dir)}">
-
-                <div class="col-md-3">
-                    <label for="keyword" class="form-label small fw-semibold">Search</label>
-                    <input type="text" class="form-control form-control-sm" id="keyword" name="keyword"
-                           placeholder="ID, name, or zone..." maxlength="100"
-                           value="${e:esc(pr.keyword)}">
-                </div>
-
-                <div class="col-md-2">
-                    <label for="type" class="form-label small fw-semibold">Type</label>
-                    <select class="form-select form-select-sm ${not empty errors['type'] ? 'is-invalid' : ''}" id="type" name="type">
-                        <option value="">All types</option>
-                        <option value="SMART_LOCK" ${pr.getFilter('type') == 'SMART_LOCK' ? 'selected' : ''}>Smart Lock</option>
-                        <option value="SECURITY_CAMERA" ${pr.getFilter('type') == 'SECURITY_CAMERA' ? 'selected' : ''}>Security Camera</option>
-                    </select>
-                    <t:if test="${not empty errors['type']}">
-                        <div class="invalid-feedback d-block">${e:esc(errors['type'])}</div>
-                    </t:if>
-                </div>
-
-                <div class="col-md-2">
-                    <label for="status" class="form-label small fw-semibold">Status</label>
-                    <select class="form-select form-select-sm ${not empty errors['status'] ? 'is-invalid' : ''}" id="status" name="status">
-                        <option value="">All statuses</option>
-                        <option value="ONLINE" ${pr.getFilter('status') == 'ONLINE' ? 'selected' : ''}>Online</option>
-                        <option value="OFFLINE" ${pr.getFilter('status') == 'OFFLINE' ? 'selected' : ''}>Offline</option>
-                        <option value="FAULT" ${pr.getFilter('status') == 'FAULT' ? 'selected' : ''}>Fault</option>
-                    </select>
-                    <t:if test="${not empty errors['status']}">
-                        <div class="invalid-feedback d-block">${e:esc(errors['status'])}</div>
-                    </t:if>
-                </div>
-
-                <div class="col-md-2">
-                    <label for="active" class="form-label small fw-semibold">Active</label>
-                    <select class="form-select form-select-sm ${not empty errors['active'] ? 'is-invalid' : ''}" id="active" name="active">
-                        <option value="">All</option>
-                        <option value="1" ${pr.getFilter('active') == '1' ? 'selected' : ''}>Active only</option>
-                        <option value="0" ${pr.getFilter('active') == '0' ? 'selected' : ''}>Inactive only</option>
-                    </select>
-                    <t:if test="${not empty errors['active']}">
-                        <div class="invalid-feedback d-block">${e:esc(errors['active'])}</div>
-                    </t:if>
-                </div>
-
-                <div class="col-md-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Filter</button>
-                    <a href="${pageContext.request.contextPath}/admin/devices" class="btn btn-outline-secondary btn-sm">Reset</a>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Note & Scope Explanation -->
-    <div class="d-flex flex-wrap align-items-center gap-3 small text-muted mb-2 px-1">
-        <span><i class="bi bi-info-circle me-1 text-espresso"></i><strong>Hardware Scope:</strong> Devices with Room <code>- (Shared)</code> belong to common areas (Main Entrance &amp; Lobby) accessible to all valid guest PINs; assigned rooms are private room locks.</span>
-    </div>
-
-    <div class="card shadow-sm mb-4">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-3"><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/devices" column="id" label="Device ID"/></th>
-                            <th><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/devices" column="name" label="Name"/></th>
-                            <th><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/devices" column="type" label="Type"/></th>
-                            <th>Zone</th>
-                            <th>
-                                Room
-                                <i class="bi bi-info-circle ms-1 text-muted" data-bs-toggle="tooltip" title="'-' indicates a shared device (main entrance/lobby) accessible to all active guests, whereas room numbers indicate private door locks"></i>
-                            </th>
-                            <th><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/devices" column="status" label="Status"/></th>
-                            <th>Active</th>
-                            <th><t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/devices" column="seen" label="Last Seen"/></th>
-                            <th class="pe-3 text-end">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <t:if test="${empty result.items}">
-                            <tr>
-                                <td colspan="9" class="text-center py-4 text-muted">
-                                    No devices found matching your criteria.
-                                </td>
-                            </tr>
-                        </t:if>
-                        <t:forEach items="${result.items}" var="d">
-                            <tr>
-                                <td class="ps-3"><code class="fw-bold">${e:esc(d.deviceId)}</code></td>
-                                <td>${e:esc(d.deviceName)}</td>
-                                <td>
-                                    <t:if test="${d.deviceType == 'SMART_LOCK'}">
-                                        <span class="badge bg-info text-dark">Lock</span>
-                                    </t:if>
-                                    <t:if test="${d.deviceType == 'SECURITY_CAMERA'}">
-                                        <span class="badge bg-secondary">Camera</span>
-                                    </t:if>
-                                </td>
-                                <td>${e:esc(d.zoneId)}</td>
-                                <td>
-                                    <t:if test="${not empty d.roomNumber}">
-                                        <span class="badge bg-light text-dark border">Room ${e:esc(d.roomNumber)}</span>
-                                    </t:if>
-                                    <t:if test="${empty d.roomNumber}">
-                                        <span class="badge bg-secondary-subtle text-secondary" data-bs-toggle="tooltip" title="Shared device (main entrance / lobby) &ndash; accessible to all guests">- (Shared)</span>
-                                    </t:if>
-                                </td>
-                                <td>
-                                    <span class="badge-status status-${e:esc(d.status)}">${e:esc(d.status)}</span>
-                                </td>
-                                <td>
-                                    <t:if test="${d.active}">
-                                        <span class="badge bg-success">Yes</span>
-                                    </t:if>
-                                    <t:if test="${not d.active}">
-                                        <span class="badge bg-secondary">No</span>
-                                    </t:if>
-                                </td>
-                                <td class="small">
-                                    <t:if test="${not empty d.lastSeenAt}">
-                                        <span class="font-monospace text-dark" data-bs-toggle="tooltip" title="${e:datetime(d.lastSeenAt)}">
-                                            ${e:timeAgo(d.lastSeenAt)}
-                                        </span>
-                                    </t:if>
-                                    <t:if test="${empty d.lastSeenAt}">
-                                        <span class="text-muted">-</span>
-                                    </t:if>
-                                </td>
-                                <td class="pe-3 text-end">
-                                    <div class="d-inline-flex gap-1 align-items-center">
-                                        <a href="${pageContext.request.contextPath}/admin/devices/edit?deviceId=${e:url(d.deviceId)}"
-                                           class="btn btn-outline-primary btn-sm py-0 px-2" title="Edit device details">
-                                            Edit
-                                        </a>
-
-                                        <button type="button" class="btn btn-outline-warning btn-sm py-0 px-2 btn-api-key-modal"
-                                                data-device-id="${e:esc(d.deviceId)}" title="Regenerate API key">
-                                            API key
-                                        </button>
-
-                                        <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 btn-delete-device-modal"
-                                                data-device-id="${e:esc(d.deviceId)}" data-device-name="${e:esc(d.deviceName)}"
-                                                title="Delete device">
-                                            Delete
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </t:forEach>
-                    </tbody>
-                </table>
+    <!-- Toolbar: search + status chips -->
+    <form action="${pageContext.request.contextPath}/admin/devices" method="get" class="ss-toolbar">
+        <input type="hidden" name="status" value="${e:esc(pr.getFilter('status'))}">
+        <div class="ss-toolbar__main">
+            <div class="ss-toolbar__search">
+                <i class="bi bi-search ss-toolbar__search-icon" aria-hidden="true"></i>
+                <label for="keyword" class="visually-hidden">Search devices</label>
+                <input type="search" class="ss-toolbar__search-input" id="keyword" name="keyword"
+                       placeholder="Device name, ID or zone" maxlength="100" value="${e:esc(pr.keyword)}">
+            </div>
+            <div class="ss-toolbar__chips" role="group" aria-label="Device status">
+                <a class="ss-chip ${empty pr.getFilter('status') ? 'ss-chip--active' : ''}" href="${pageContext.request.contextPath}/admin/devices">All</a>
+                <a class="ss-chip ${pr.getFilter('status') == 'FAULT' ? 'ss-chip--active' : ''}" href="${pageContext.request.contextPath}/admin/devices?status=FAULT">Fault</a>
+                <a class="ss-chip ${pr.getFilter('status') == 'OFFLINE' ? 'ss-chip--active' : ''}" href="${pageContext.request.contextPath}/admin/devices?status=OFFLINE">Offline</a>
+                <a class="ss-chip ${pr.getFilter('status') == 'ONLINE' ? 'ss-chip--active' : ''}" href="${pageContext.request.contextPath}/admin/devices?status=ONLINE">Online</a>
             </div>
         </div>
+    </form>
+
+    <div class="ss-dev-table">
+        <t:if test="${empty result.items && empty dbError}">
+            <div class="ss-empty">
+                <i class="bi bi-cpu ss-empty__icon" aria-hidden="true"></i>
+                <p class="ss-empty__title">No devices match</p>
+                <p class="ss-empty__desc">Choose another status or clear the search.</p>
+                <a href="${pageContext.request.contextPath}/admin/devices" class="btn btn-outline-soft btn-sm rounded-pill px-3">Show all devices</a>
+            </div>
+        </t:if>
+        <t:if test="${not empty result.items}">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 ss-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="ps-3">Name</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Last seen</th>
+                            <th scope="col">
+                                Room
+                                <i class="bi bi-info-circle ms-1" tabindex="0" role="img" aria-label="Shared devices serve the main entrance and lobby and accept every valid guest PIN. A room code means a private room lock."
+                                   data-bs-toggle="tooltip" title="Shared devices serve the main entrance and lobby and accept every valid guest PIN. A room code means a private room lock."></i>
+                            </th>
+                            <th scope="col" class="pe-3 text-end"><span class="visually-hidden">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <t:forEach items="${deviceGroups}" var="grp">
+                        <tbody>
+                            <tr class="ss-dev-group">
+                                <th scope="rowgroup" colspan="6" class="ps-3">${e:esc(grp.label)}</th>
+                            </tr>
+                            <t:forEach items="${grp.items}" var="d">
+                                <tr class="${!d.active ? 'ss-dev-row--off' : ''}">
+                                    <td class="ps-3">
+                                        <div class="ss-dev__name"><a class="ss-row-link" href="${pageContext.request.contextPath}/admin/devices/edit?deviceId=${e:url(d.deviceId)}">${e:esc(d.deviceName)}</a></div>
+                                        <div class="ss-dev__id">${e:esc(d.deviceId)}</div>
+                                    </td>
+                                    <td>
+                                        <t:if test="${d.deviceType == 'SMART_LOCK'}"><i class="bi bi-lock ss-dev__type" aria-hidden="true"></i>Lock</t:if>
+                                        <t:if test="${d.deviceType == 'SECURITY_CAMERA'}"><i class="bi bi-camera-video ss-dev__type" aria-hidden="true"></i>Camera</t:if>
+                                        <t:if test="${d.deviceType != 'SMART_LOCK' && d.deviceType != 'SECURITY_CAMERA'}"><i class="bi bi-cpu ss-dev__type" aria-hidden="true"></i>Sensor</t:if>
+                                    </td>
+                                    <td>
+                                        <span class="ss-dev__status">
+                                            <t:if test="${!d.active}"><span class="ss-status-dot ss-status-dot--muted" aria-hidden="true"></span>Disabled</t:if>
+                                            <t:if test="${d.active && d.status == 'ONLINE'}"><span class="ss-status-dot ss-status-dot--ok" aria-hidden="true"></span>Online</t:if>
+                                            <t:if test="${d.active && d.status == 'OFFLINE'}"><span class="ss-status-dot ss-status-dot--warn" aria-hidden="true"></span><span class="ss-dev__warn">Offline</span></t:if>
+                                            <t:if test="${d.active && d.status == 'FAULT'}"><span class="ss-status-dot ss-status-dot--danger" aria-hidden="true"></span><span class="ss-dev__bad">Fault</span></t:if>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <t:if test="${not empty d.lastSeenAt}">
+                                            <span data-bs-toggle="tooltip" title="${e:datetime(d.lastSeenAt)}">${e:timeAgo(d.lastSeenAt)}</span>
+                                        </t:if>
+                                        <t:if test="${empty d.lastSeenAt}"><span class="ss-dev__id">Never</span></t:if>
+                                    </td>
+                                    <td>
+                                        <t:if test="${not empty d.roomNumber}">${e:esc(d.roomNumber)}</t:if>
+                                        <t:if test="${empty d.roomNumber}"><span class="ss-dev__id">Shared</span></t:if>
+                                    </td>
+                                    <td class="pe-3 text-end text-nowrap">
+                                        <t:if test="${d.deviceType == 'SMART_LOCK' && d.active}">
+                                            <%-- Remote door commands (MQTT). Unlock needs a second tap within 3 s. --%>
+                                            <div class="ss-dev__cmds">
+                                                <form action="${pageContext.request.contextPath}/admin/devices/command" method="post" class="ss-dev__cmd-form">
+                                                    <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                                                    <input type="hidden" name="deviceId" value="${e:esc(d.deviceId)}">
+                                                    <input type="hidden" name="command" value="UNLOCK">
+                                                    <button type="submit" class="btn btn-outline-soft btn-sm rounded-pill ss-dev__cmd ss-tap-confirm" data-tap-confirm
+                                                            aria-live="polite">
+                                                        <i class="bi bi-unlock" aria-hidden="true"></i><span class="ss-tap-confirm__text">Unlock</span><span class="visually-hidden"> ${e:esc(d.deviceName)}</span>
+                                                        <span class="ss-tap-confirm__bar" aria-hidden="true"></span>
+                                                    </button>
+                                                </form>
+                                                <form action="${pageContext.request.contextPath}/admin/devices/command" method="post" class="ss-dev__cmd-form">
+                                                    <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                                                    <input type="hidden" name="deviceId" value="${e:esc(d.deviceId)}">
+                                                    <input type="hidden" name="command" value="SILENCE">
+                                                    <button type="submit" class="btn btn-outline-soft btn-sm rounded-pill ss-dev__cmd"
+                                                            aria-label="Silence the alarm on ${e:esc(d.deviceName)}">
+                                                        <i class="bi bi-volume-mute" aria-hidden="true"></i><span>Silence</span>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </t:if>
+                                        <div class="dropdown d-inline-block ss-row-menu">
+                                            <button class="btn-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                                    aria-label="More actions for ${e:esc(d.deviceName)}">
+                                                <i class="bi bi-three-dots" aria-hidden="true"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li><a class="dropdown-item" href="${pageContext.request.contextPath}/admin/devices/edit?deviceId=${e:url(d.deviceId)}">Edit</a></li>
+                                                <li>
+                                                    <button type="button" class="dropdown-item btn-api-key-modal" data-device-id="${e:esc(d.deviceId)}">New API key</button>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <button type="button" class="dropdown-item dropdown-item--destructive btn-delete-device-modal"
+                                                            data-device-id="${e:esc(d.deviceId)}" data-device-name="${e:esc(d.deviceName)}">Delete device</button>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </t:forEach>
+                        </tbody>
+                    </t:forEach>
+                </table>
+            </div>
+        </t:if>
     </div>
 
     <t:pagination result="${result}" baseUrl="${pageContext.request.contextPath}/admin/devices"/>
@@ -267,7 +226,7 @@
                 <div class="modal-body">
                     <p class="small mb-2">New 32-character API key for <strong id="revealDeviceIdText" class="font-monospace text-espresso"></strong>:</p>
                     <div class="input-group mb-3">
-                        <input type="text" class="form-control font-monospace bg-light fw-bold" id="revealApiKeyInput" readonly>
+                        <input type="text" class="form-control font-monospace bg-light fw-bold" id="revealApiKeyInput" aria-label="New API key" readonly>
                         <button class="btn btn-primary" type="button" id="copyApiKeyBtn">
                             <i class="bi bi-clipboard me-1"></i><span id="copyBtnText">Copy</span>
                         </button>
@@ -289,7 +248,23 @@
         <input type="hidden" id="autoOpenDeviceId" value="${e:esc(newApiKeyDeviceId)}">
     </t:if>
 
+    <script src="${pageContext.request.contextPath}/assets/js/tap-confirm.js"></script>
     <script>
+        // Remote command confirmation from the lock (sent through /api/iot/heartbeat -> DEVICE_ACK)
+        window.addEventListener('smartstay:realtime', function (ev) {
+            var data = ev.detail || {};
+            var box = document.getElementById('deviceAck');
+            if (data.event !== 'DEVICE_ACK' || !box) {
+                return;
+            }
+            var what = data.command === 'UNLOCK' ? 'Door unlocked'
+                     : data.command === 'SILENCE' ? 'Alarm silenced' : String(data.command || 'Command done');
+            var now = new Date();
+            var hh = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) + ':' + ('0' + now.getSeconds()).slice(-2);
+            box.textContent = what + ' · ' + (data.deviceId || '') + ' · ' + hh;
+            box.hidden = false;
+        });
+
         document.addEventListener('DOMContentLoaded', function() {
             // Delete Modal Logic
             var deleteModalEl = document.getElementById('deleteDeviceModal');

@@ -20,7 +20,16 @@
         if (parts.length === 3) {
             return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
         }
+        // V4: the visible field shows dd/MM/yyyy
+        parts = s.split('/');
+        if (parts.length === 3) {
+            return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+        }
         return new Date();
+    }
+
+    function formatDisplay(d) {
+        return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
     }
 
     // Get ISO-8601 week number
@@ -58,6 +67,9 @@
         this.selectedDate = initialDate;
         this.viewMonth = initialDate.getMonth();
         this.viewYear = initialDate.getFullYear();
+        if (this.input && this.input.value) {
+            this.input.value = formatDisplay(initialDate); // V4: dd/MM/yyyy on screen; the server reads both formats
+        }
 
         this.init();
     }
@@ -74,6 +86,8 @@
         var popup = document.createElement('div');
         popup.className = 'weekly-calendar-popover shadow-lg';
         popup.style.display = 'none';
+        popup.setAttribute('role', 'dialog');
+        popup.setAttribute('aria-label', 'Choose a week');
 
         popup.innerHTML =
             '<div class="weekly-cal-header d-flex align-items-center justify-content-between p-3">' +
@@ -174,10 +188,26 @@
                 loopDate.setDate(loopDate.getDate() + 1);
             }
 
+            // V4: each week row is a keyboard button too (Enter / Space selects it)
+            var weekEnd = new Date(loopDate);
+            weekEnd.setDate(weekEnd.getDate() - 1);
+            tr.tabIndex = 0;
+            tr.setAttribute('role', 'button');
+            tr.setAttribute('aria-label', 'Week ' + weekNum + ', '
+                    + pad2(parseDate(weekStartStr).getDate()) + '/' + pad2(parseDate(weekStartStr).getMonth() + 1)
+                    + ' to ' + pad2(weekEnd.getDate()) + '/' + pad2(weekEnd.getMonth() + 1)
+                    + (isSelectedWeek ? ', selected' : ''));
+
             // Click row to select entire 7-day week
             (function(wsStr) {
                 tr.addEventListener('click', function(e) {
                     self.selectWeek(wsStr);
+                });
+                tr.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                        e.preventDefault();
+                        self.selectWeek(wsStr);
+                    }
                 });
 
                 // Row hover effect across all 7 days
@@ -202,7 +232,7 @@
         this.selectedDate = weekStartDate;
 
         if (this.input) {
-            this.input.value = weekStartStr;
+            this.input.value = formatDisplay(weekStartDate);
             // Dispatch change event
             var event = new Event('change', { bubbles: true });
             this.input.dispatchEvent(event);
@@ -240,11 +270,23 @@
         this.popup.style.display = 'block';
 
         this.render();
+
+        // V4: keyboard users land on the selected week
+        var current = this.popup.querySelector('.week-row-selected') || this.popup.querySelector('.week-row');
+        if (current && typeof current.focus === 'function') {
+            current.focus({ preventScroll: true });
+        }
     };
 
     WeeklyCalendar.prototype.hide = function() {
         if (this.popup) {
+            var hadFocus = this.popup.contains(document.activeElement);
             this.popup.style.display = 'none';
+            // V4: focus goes back to the date field it was opened from
+            var triggerEl = this.trigger || this.input;
+            if (hadFocus && triggerEl && typeof triggerEl.focus === 'function') {
+                triggerEl.focus();
+            }
         }
     };
 
@@ -262,7 +304,22 @@
                     self.show();
                 }
             });
+            // V4: Space or Arrow Down opens the calendar from the keyboard (Enter still submits the form)
+            triggerEl.addEventListener('keydown', function(e) {
+                if ((e.key === ' ' || e.key === 'Spacebar' || e.key === 'ArrowDown') && self.popup.style.display !== 'block') {
+                    e.preventDefault();
+                    self.show();
+                }
+            });
+            triggerEl.setAttribute('aria-haspopup', 'dialog');
         }
+
+        // V4: tabbing out of the open calendar closes it
+        this.popup.addEventListener('focusout', function(e) {
+            if (self.popup.style.display === 'block' && e.relatedTarget && !self.popup.contains(e.relatedTarget)) {
+                self.popup.style.display = 'none';
+            }
+        });
 
         if (this.input && this.trigger !== this.input) {
             this.input.addEventListener('click', function(e) {

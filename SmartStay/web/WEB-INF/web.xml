@@ -12,7 +12,20 @@
         <param-value>true</param-value>
     </context-param>
 
-    <!-- Filters in exact order: EncodingFilter -> CsrfFilter -> AuthFilter -> PermissionFilter -->
+    <!-- Demo tools (/demo/*, Demo drawer). Set to false to hide them: /demo/* then returns 404. -->
+    <context-param>
+        <param-name>demo.mode</param-name>
+        <param-value>true</param-value>
+    </context-param>
+
+    <!-- ESP32-CAM photos are kept here, outside build/web, so Clean and Build never deletes them
+         (util.SnapshotStore, served by SnapshotServlet at /assets/images/snapshots/*). -->
+    <context-param>
+        <param-name>snapshot.dir</param-name>
+        <param-value>C:/SmartStay/snapshots</param-value>
+    </context-param>
+
+    <!-- Filters in exact order: EncodingFilter -> DemoModeFilter (/demo/* only) -> CsrfFilter -> AuthFilter -> PermissionFilter -->
     <filter>
         <filter-name>EncodingFilter</filter-name>
         <filter-class>filter.EncodingFilter</filter-class>
@@ -20,6 +33,15 @@
     <filter-mapping>
         <filter-name>EncodingFilter</filter-name>
         <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <filter>
+        <filter-name>DemoModeFilter</filter-name>
+        <filter-class>filter.DemoModeFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>DemoModeFilter</filter-name>
+        <url-pattern>/demo/*</url-pattern>
     </filter-mapping>
 
     <filter>

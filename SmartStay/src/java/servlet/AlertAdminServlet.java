@@ -32,7 +32,7 @@ import javax.servlet.http.HttpSession;
 public class AlertAdminServlet extends HttpServlet {
 
     private static final Logger LOGGER = Logger.getLogger(AlertAdminServlet.class.getName());
-    private static final String[] SORT_KEYS = {"time", "severity", "status", "type"};
+    private static final String[] SORT_KEYS = {"smart", "time", "severity", "status", "type"};
 
     private final AlertLogDao alertLogDao = new AlertLogDao();
 
@@ -64,9 +64,38 @@ public class AlertAdminServlet extends HttpServlet {
 
     private void listAlerts(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        PageRequest pr = PageRequest.from(req, SORT_KEYS, "time", "DESC");
-        pr.setSize(15);
+        // R10: inbox tabs Open (NEW, default) | Acknowledged | Resolved | All; most severe first, then newest
+        PageRequest pr = PageRequest.from(req, SORT_KEYS, "smart", "DESC");
+        pr.setSize(20);
         Map<String, String> errors = new HashMap<>();
+
+        String tab = pr.getFilter("tab").toLowerCase();
+        String legacyStatus = pr.getFilter("status").toUpperCase();
+        if (tab.isEmpty()) {
+            tab = "ACKNOWLEDGED".equals(legacyStatus) ? "ack" : ("RESOLVED".equals(legacyStatus) ? "resolved" : "open");
+            if (!legacyStatus.isEmpty() && !"NEW".equals(legacyStatus) && !"ACKNOWLEDGED".equals(legacyStatus)
+                    && !"RESOLVED".equals(legacyStatus)) {
+                tab = "all";
+            }
+        }
+        if (!"open".equals(tab) && !"ack".equals(tab) && !"resolved".equals(tab) && !"all".equals(tab)) {
+            tab = "open";
+        }
+        pr.setFilter("tab", tab);
+        pr.setFilter("status", "open".equals(tab) ? "NEW" : ("ack".equals(tab) ? "ACKNOWLEDGED"
+                : ("resolved".equals(tab) ? "RESOLVED" : null)));
+        req.setAttribute("tab", tab);
+        req.setAttribute("chipBaseQs", pr.toQueryString("page", "size", "severity", "status"));
+        req.setAttribute("tabBaseQs", pr.toQueryString("page", "size", "tab", "status"));
+        req.setAttribute("returnQs", pr.toQueryString("size", "status"));
+        req.setAttribute("moreFiltersOpen", !pr.getFilter("type").isEmpty() || !pr.getFilter("from").isEmpty()
+                || !pr.getFilter("to").isEmpty());
+        try {
+            req.setAttribute("statusCounts", alertLogDao.getStatusCounts());
+        } catch (SQLException e) {
+            LOGGER.log(Level.WARNING, "Failed to count alerts by status", e);
+        }
+        req.setAttribute("canHandle", canHandle(req));
 
         String fromStr = pr.getFilter("from");
         String toStr = pr.getFilter("to");
@@ -124,49 +153,95 @@ public class AlertAdminServlet extends HttpServlet {
             req.setAttribute("dbError", "Failed to load alert logs from database.");
         }
 
+        // ESP32-CAM photo in the detail drawer: only when the file really exists and SNAPSHOT_VIEW is granted
+        HttpSession snapSession = req.getSession(false);
+        Object perms = (snapSession != null) ? snapSession.getAttribute("permissions") : null;
+        boolean canSnapshot = perms instanceof Set && ((Set<?>) perms).contains("SNAPSHOT_VIEW");
+        for (AlertEntry a : result.getItems()) {
+            a.setSnapshotAvailable(canSnapshot && util.IotDevices.snapshotExists(getServletContext(), a.getSnapshotPath()));
+        }
+
         List<String> types = Collections.emptyList();
         try {
             types = alertLogDao.findDistinctTypes();
         } catch (SQLException e) {
             LOGGER.log(Level.WARNING, "Failed to load distinct alert types", e);
         }
+        Map<String, String> typeTitles = new java.util.LinkedHashMap<>();
+        for (String code : types) {
+            typeTitles.put(code, util.AlertTitles.title(code));
+        }
         req.setAttribute("types", types);
+        req.setAttribute("typeTitles", typeTitles);
         req.setAttribute("result", result);
         req.setAttribute("pr", pr);
         req.setAttribute("errors", errors);
         req.getRequestDispatcher("/WEB-INF/views/admin/alerts.jsp").forward(req, resp);
     }
 
-    private void handleAlertAction(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
+    /** ALERT_HANDLE permission, or an Owner/Admin account (unchanged rule). */
+    private static boolean canHandle(HttpServletRequest req) {
         HttpSession session = req.getSession(false);
         AuthUser authUser = (session != null) ? (AuthUser) session.getAttribute("authUser") : null;
         @SuppressWarnings("unchecked")
         Set<String> perms = (session != null) ? (Set<String>) session.getAttribute("permissions") : null;
-
         String roleName = (session != null) ? (String) session.getAttribute("roleName") : null;
         if (roleName == null && authUser != null) {
             roleName = authUser.getRoleName();
         }
-        boolean canHandle = (perms != null && perms.contains("ALERT_HANDLE"))
+        return authUser != null && ((perms != null && perms.contains("ALERT_HANDLE"))
                 || "ADMIN".equalsIgnoreCase(roleName)
-                || "OWNER".equalsIgnoreCase(roleName);
+                || "OWNER".equalsIgnoreCase(roleName));
+    }
 
-        if (authUser == null || !canHandle) {
+    private static boolean isAjax(HttpServletRequest req) {
+        return "XMLHttpRequest".equalsIgnoreCase(req.getHeader("X-Requested-With"));
+    }
+
+    /** JSON answer for in-place updates (R10): {success, message, alertId, status, newAlertCount}. */
+    private void writeJson(HttpServletResponse resp, int status, boolean success, String message,
+                           long alertId, String alertStatus) throws IOException {
+        resp.setStatus(status);
+        resp.setContentType("application/json; charset=UTF-8");
+        resp.setHeader("Cache-Control", "no-store");
+        com.google.gson.JsonObject o = new com.google.gson.JsonObject();
+        o.addProperty("success", success);
+        o.addProperty("message", message);
+        o.addProperty("alertId", alertId);
+        if (alertStatus != null) {
+            o.addProperty("status", alertStatus);
+        }
+        o.addProperty("newAlertCount", alertLogDao.countNewAlerts());
+        resp.getWriter().write(o.toString());
+    }
+
+    private void handleAlertAction(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        HttpSession session = req.getSession(false);
+        AuthUser authUser = (session != null) ? (AuthUser) session.getAttribute("authUser") : null;
+
+        if (authUser == null || !canHandle(req)) {
+            if (isAjax(req)) {
+                writeJson(resp, HttpServletResponse.SC_FORBIDDEN, false, "You are not allowed to handle alerts.", 0, null);
+                return;
+            }
             resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
             req.getRequestDispatcher("/WEB-INF/views/error/403.jsp").forward(req, resp);
             return;
         }
 
+        String returnUrl = req.getParameter("returnUrl");
+        String back = (returnUrl != null && returnUrl.startsWith(req.getContextPath() + "/admin/alerts")
+                && returnUrl.indexOf('\r') < 0 && returnUrl.indexOf('\n') < 0)
+                ? returnUrl : req.getContextPath() + "/admin/alerts";
+
         String action = req.getParameter("action");
         String idStr = req.getParameter("alertId");
         long alertId;
-
         try {
             alertId = Long.parseLong(idStr != null ? idStr.trim() : "");
         } catch (NumberFormatException e) {
-            Flash.error(req, "Invalid alert ID specified.");
-            resp.sendRedirect(req.getContextPath() + "/admin/alerts");
+            finishAction(req, resp, back, HttpServletResponse.SC_BAD_REQUEST, "error", "Invalid alert ID specified.", 0, null);
             return;
         }
 
@@ -179,31 +254,26 @@ public class AlertAdminServlet extends HttpServlet {
         }
 
         if (alert == null) {
-            Flash.error(req, "Alert #" + alertId + " not found.");
-            resp.sendRedirect(req.getContextPath() + "/admin/alerts");
+            finishAction(req, resp, back, HttpServletResponse.SC_NOT_FOUND, "error", "This alert no longer exists.", alertId, null);
             return;
         }
 
         long userId = authUser.getUserId();
+        String title = alert.getTitle();
 
         if ("acknowledge".equalsIgnoreCase(action)) {
             try {
                 int updated = alertLogDao.acknowledge(alertId, userId);
                 if (updated > 0) {
                     LOGGER.info("Alert acknowledged: " + alert.getAlertType() + " id=" + alertId);
-                    Flash.success(req, "Alert #" + alertId + " has been acknowledged.");
-                    Map<String, Object> ev = new HashMap<>();
-                    ev.put("alertId", alertId);
-                    ev.put("status", "ACKNOWLEDGED");
-                    ev.put("alertType", alert.getAlertType());
-                    ev.put("newAlertCount", alertLogDao.countNewAlerts());
-                    websocket.RealtimeWebSocketEndpoint.broadcastEvent("ALERT_UPDATED", ev);
+                    broadcastUpdate(alertId, "ACKNOWLEDGED", alert.getAlertType());
+                    finishAction(req, resp, back, HttpServletResponse.SC_OK, "success", "Acknowledged: " + title + ".", alertId, "ACKNOWLEDGED");
                 } else {
-                    Flash.info(req, "This alert cannot be updated.");
+                    finishAction(req, resp, back, HttpServletResponse.SC_CONFLICT, "info", "Someone already handled this alert.", alertId, alert.getStatus());
                 }
             } catch (SQLException e) {
                 LOGGER.log(Level.SEVERE, "Failed to acknowledge alert #" + alertId, e);
-                Flash.error(req, "Database error occurred while acknowledging alert.");
+                finishAction(req, resp, back, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "error", "Could not save. Please try again.", alertId, null);
             }
         } else if ("resolve".equalsIgnoreCase(action)) {
             String note = req.getParameter("note");
@@ -216,24 +286,44 @@ public class AlertAdminServlet extends HttpServlet {
                 int updated = alertLogDao.resolve(alertId, userId, trimmedNote);
                 if (updated > 0) {
                     LOGGER.info("Alert resolved: " + alert.getAlertType() + " id=" + alertId + " note=" + trimmedNote);
-                    Flash.success(req, "Alert #" + alertId + " has been resolved.");
-                    Map<String, Object> ev = new HashMap<>();
-                    ev.put("alertId", alertId);
-                    ev.put("status", "RESOLVED");
-                    ev.put("alertType", alert.getAlertType());
-                    ev.put("newAlertCount", alertLogDao.countNewAlerts());
-                    websocket.RealtimeWebSocketEndpoint.broadcastEvent("ALERT_UPDATED", ev);
+                    broadcastUpdate(alertId, "RESOLVED", alert.getAlertType());
+                    finishAction(req, resp, back, HttpServletResponse.SC_OK, "success", "Resolved: " + title + ".", alertId, "RESOLVED");
                 } else {
-                    Flash.info(req, "This alert cannot be updated.");
+                    finishAction(req, resp, back, HttpServletResponse.SC_CONFLICT, "info", "Someone already handled this alert.", alertId, alert.getStatus());
                 }
             } catch (SQLException e) {
                 LOGGER.log(Level.SEVERE, "Failed to resolve alert #" + alertId, e);
-                Flash.error(req, "Database error occurred while resolving alert.");
+                finishAction(req, resp, back, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "error", "Could not save. Please try again.", alertId, null);
             }
         } else {
-            Flash.error(req, "Invalid action requested.");
+            finishAction(req, resp, back, HttpServletResponse.SC_BAD_REQUEST, "error", "Invalid action requested.", alertId, null);
         }
+    }
 
-        resp.sendRedirect(req.getContextPath() + "/admin/alerts");
+    private void broadcastUpdate(long alertId, String status, String alertType) {
+        Map<String, Object> ev = new HashMap<>();
+        ev.put("alertId", alertId);
+        ev.put("status", status);
+        ev.put("alertType", alertType);
+        ev.put("title", util.AlertTitles.title(alertType));
+        ev.put("newAlertCount", alertLogDao.countNewAlerts());
+        websocket.RealtimeWebSocketEndpoint.broadcastEvent("ALERT_UPDATED", ev);
+    }
+
+    /** fetch() callers get JSON; a plain form post gets a flash message and a redirect back to the same tab. */
+    private void finishAction(HttpServletRequest req, HttpServletResponse resp, String back, int status,
+                              String level, String message, long alertId, String alertStatus) throws IOException {
+        if (isAjax(req)) {
+            writeJson(resp, status, status == HttpServletResponse.SC_OK, message, alertId, alertStatus);
+            return;
+        }
+        if ("success".equals(level)) {
+            Flash.success(req, message);
+        } else if ("info".equals(level)) {
+            Flash.info(req, message);
+        } else {
+            Flash.error(req, message);
+        }
+        resp.sendRedirect(back);
     }
 }

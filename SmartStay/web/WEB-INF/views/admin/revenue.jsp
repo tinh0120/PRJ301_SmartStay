@@ -2,22 +2,14 @@
 <%@ taglib prefix="e" uri="/WEB-INF/tld/smartstay.tld" %>
 <%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
 <t:layout title="Revenue report" active="revenue">
-    <!-- Boutique Breadcrumb Navigation -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb boutique-breadcrumb m-0">
-            <li class="breadcrumb-item">
-                <a href="${pageContext.request.contextPath}/admin/dashboard" class="boutique-breadcrumb-link">
-                    <i class="bi bi-house-door me-1"></i>Dashboard
-                </a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">Revenue report</li>
-        </ol>
-    </nav>
-
-    <div class="d-flex justify-content-between align-items-baseline mb-3">
+    <%-- R11: 4 KPIs (change chip inside Total revenue), quick ranges, no nested scroll, server-side CSV. --%>
+    <div class="ss-page-header">
         <div>
-            <h1 class="h2 mb-1">Financial Revenue Report</h1>
-            <p class="text-muted small mb-0">Aggregated revenue based on confirmed payments grouped by day, month, or year.</p>
+            <h1 class="ss-page-header__title">Revenue</h1>
+            <p class="ss-page-header__subtitle">Paid bookings in the selected period
+                <i class="bi bi-info-circle ss-rev__info" tabindex="0" role="img" aria-label="Cancelled and refunded bookings are excluded"
+                   data-bs-toggle="tooltip" title="Cancelled and refunded bookings are excluded"></i>
+            </p>
         </div>
     </div>
 
@@ -25,309 +17,193 @@
         <div class="alert alert-danger" role="alert">${e:esc(dbError)}</div>
     </t:if>
 
-    <!-- Filter Form (Default Last 30 Days) -->
-    <div class="card mb-4 shadow-sm border-0">
-        <div class="card-body">
-            <form action="${pageContext.request.contextPath}/admin/reports/revenue" method="get" class="row g-3 needs-validation" novalidate>
-                <div class="col-md-3">
-                    <label for="mode" class="form-label small fw-semibold">Group by</label>
-                    <select class="form-select form-select-sm" id="mode" name="mode">
-                        <option value="day" ${mode == 'day' ? 'selected' : ''}>Day (Daily)</option>
-                        <option value="month" ${mode == 'month' ? 'selected' : ''}>Month (Monthly)</option>
-                        <option value="year" ${mode == 'year' ? 'selected' : ''}>Year (Yearly)</option>
-                    </select>
-                </div>
+    <!-- Range toolbar -->
+    <form action="${pageContext.request.contextPath}/admin/reports/revenue" method="get" class="ss-toolbar ss-rev__toolbar">
+        <div class="ss-toolbar__main">
+            <div class="ss-toolbar__chips" role="group" aria-label="Quick range">
+                <a class="ss-chip ${activeRange == '7d' ? 'ss-chip--active' : ''}" ${activeRange == '7d' ? 'aria-current="true"' : ''}
+                   href="${pageContext.request.contextPath}/admin/reports/revenue?mode=${e:esc(mode)}&amp;range=7d">7 days</a>
+                <a class="ss-chip ${activeRange == '30d' ? 'ss-chip--active' : ''}" ${activeRange == '30d' ? 'aria-current="true"' : ''}
+                   href="${pageContext.request.contextPath}/admin/reports/revenue?mode=${e:esc(mode)}&amp;range=30d">30 days</a>
+                <a class="ss-chip ${activeRange == '90d' ? 'ss-chip--active' : ''}" ${activeRange == '90d' ? 'aria-current="true"' : ''}
+                   href="${pageContext.request.contextPath}/admin/reports/revenue?mode=${e:esc(mode)}&amp;range=90d">90 days</a>
+                <a class="ss-chip ${activeRange == 'month' ? 'ss-chip--active' : ''}" ${activeRange == 'month' ? 'aria-current="true"' : ''}
+                   href="${pageContext.request.contextPath}/admin/reports/revenue?mode=${e:esc(mode)}&amp;range=month">This month</a>
+            </div>
+            <div class="ss-rev__dates">
+                <label for="from" class="visually-hidden">From</label>
+                <input type="date" class="form-control form-control-sm" id="from" name="from" data-datepicker value="${e:esc(from)}">
+                <span class="ss-rev__dash" aria-hidden="true">&ndash;</span>
+                <label for="to" class="visually-hidden">To</label>
+                <input type="date" class="form-control form-control-sm" id="to" name="to" data-datepicker value="${e:esc(to)}">
+            </div>
+            <div class="ss-rev__mode">
+                <label for="mode" class="visually-hidden">Group by</label>
+                <select class="form-select form-select-sm" id="mode" name="mode">
+                    <option value="day" ${mode == 'day' ? 'selected' : ''}>By day</option>
+                    <option value="month" ${mode == 'month' ? 'selected' : ''}>By month</option>
+                    <option value="year" ${mode == 'year' ? 'selected' : ''}>By year</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm px-3">Apply</button>
+        </div>
+        <t:if test="${not empty errors['from']}"><div class="invalid-feedback d-block">${e:esc(errors['from'])}</div></t:if>
+        <t:if test="${not empty errors['to']}"><div class="invalid-feedback d-block">${e:esc(errors['to'])}</div></t:if>
+    </form>
 
-                <div class="col-md-3">
-                    <label for="from" class="form-label small fw-semibold">From date</label>
-                    <input type="date" class="form-control form-control-sm ${errors['from'] != null ? 'is-invalid' : ''}"
-                           id="from" name="from" data-datepicker value="${e:esc(from)}">
-                    <t:if test="${not empty errors['from']}">
-                        <div class="invalid-feedback d-block">${e:esc(errors['from'])}</div>
-                    </t:if>
-                </div>
-
-                <div class="col-md-3">
-                    <label for="to" class="form-label small fw-semibold">To date</label>
-                    <input type="date" class="form-control form-control-sm ${errors['to'] != null ? 'is-invalid' : ''}"
-                           id="to" name="to" data-datepicker value="${e:esc(to)}">
-                    <t:if test="${not empty errors['to']}">
-                        <div class="invalid-feedback d-block">${e:esc(errors['to'])}</div>
-                    </t:if>
-                </div>
-
-                <div class="col-md-3 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-primary btn-sm px-3">Filter</button>
-                    <a href="${pageContext.request.contextPath}/admin/reports/revenue" class="btn btn-outline-secondary btn-sm px-3">Reset</a>
-                </div>
-            </form>
+    <!-- 4 KPIs -->
+    <div class="ss-rev__kpis">
+        <div class="ss-kpi ss-rev__kpi">
+            <span class="ss-kpi__label">Total revenue</span>
+            <span class="ss-kpi__value">${e:money(totalRevenue)}</span>
+            <t:if test="${not empty changePct}">
+                <span class="ss-rev__change ss-rev__change--${changeDir}"
+                      title="Previous ${e:esc(mode == 'day' ? 'period of the same length' : mode)}: ${e:money(kpis.prevRevenue)}">
+                    <i class="bi ${changeDir == 'up' ? 'bi-arrow-up-right' : (changeDir == 'down' ? 'bi-arrow-down-right' : 'bi-dash')}" aria-hidden="true"></i>
+                    ${changePct > 0 ? '+' : ''}${changePct}% vs previous period
+                </span>
+            </t:if>
+            <t:if test="${empty changePct}">
+                <span class="ss-rev__change ss-rev__change--flat">No revenue in the previous period</span>
+            </t:if>
+        </div>
+        <div class="ss-kpi ss-rev__kpi">
+            <span class="ss-kpi__label">Paid bookings</span>
+            <span class="ss-kpi__value">${totalBookings}</span>
+        </div>
+        <div class="ss-kpi ss-rev__kpi">
+            <span class="ss-kpi__label">Avg per booking</span>
+            <span class="ss-kpi__value">${e:money(totalAvg)}</span>
+        </div>
+        <div class="ss-kpi ss-rev__kpi">
+            <span class="ss-kpi__label">Occupancy rate</span>
+            <span class="ss-kpi__value">${empty kpis.occupancyRate ? 0 : kpis.occupancyRate}%</span>
+            <span class="ss-kpi__of">${kpis.bookedSlots} of ${kpis.totalCapacitySlots} slots</span>
         </div>
     </div>
 
-    <!-- 5 Operational & Financial KPI Cards -->
-    <div class="row g-3 mb-3">
-        <!-- 1. Total Revenue -->
-        <div class="col-6 col-md-4 col-xl">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body p-3">
-                    <span class="text-muted small fw-semibold text-uppercase" style="font-size: 0.72rem;">Total Revenue</span>
-                    <div class="h4 fw-bold text-success mb-0 mt-1">${e:money(totalRevenue)}</div>
-                    <span class="text-muted small" style="font-size: 0.75rem;">Selected period</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 2. Paid Bookings -->
-        <div class="col-6 col-md-4 col-xl">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body p-3">
-                    <span class="text-muted small fw-semibold text-uppercase" style="font-size: 0.72rem;">Paid Bookings</span>
-                    <div class="h4 fw-bold text-espresso mb-0 mt-1">${totalBookings}</div>
-                    <span class="text-muted small" style="font-size: 0.75rem;">Transactions</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 3. Average Per Booking -->
-        <div class="col-6 col-md-4 col-xl">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body p-3">
-                    <span class="text-muted small fw-semibold text-uppercase" style="font-size: 0.72rem;">Avg Per Booking</span>
-                    <div class="h4 fw-bold text-dark mb-0 mt-1">${e:money(kpis.avgPerBooking)}</div>
-                    <span class="text-muted small" style="font-size: 0.75rem;">Revenue / booking</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 4. Occupancy Rate -->
-        <div class="col-6 col-md-6 col-xl">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body p-3">
-                    <span class="text-muted small fw-semibold text-uppercase" style="font-size: 0.72rem;">Occupancy Rate</span>
-                    <div class="h4 fw-bold text-espresso mb-0 mt-1">${kpis.occupancyRate}%</div>
-                    <span class="text-muted small" style="font-size: 0.75rem;">${kpis.bookedSlots} / ${kpis.totalCapacitySlots} slots</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 5. Change vs Previous Period -->
-        <div class="col-12 col-md-6 col-xl">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body p-3">
-                    <span class="text-muted small fw-semibold text-uppercase" style="font-size: 0.72rem;">Change vs Prev Period</span>
-                    <div class="h4 fw-bold mb-0 mt-1">
-                        <t:if test="${kpis.changeDirection == 'up'}">
-                            <span class="text-success"><i class="bi bi-arrow-up-right me-1"></i>+${kpis.changePercent}%</span>
-                        </t:if>
-                        <t:if test="${kpis.changeDirection == 'down'}">
-                            <span class="text-danger"><i class="bi bi-arrow-down-right me-1"></i>${kpis.changePercent}%</span>
-                        </t:if>
-                        <t:if test="${kpis.changeDirection == 'flat'}">
-                            <span class="text-muted"><i class="bi bi-dash me-1"></i>0.0%</span>
-                        </t:if>
-                    </div>
-                    <span class="text-muted small" style="font-size: 0.75rem;">Preceding ${mode} window</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Exclusion Note -->
-    <div class="alert alert-light border small text-muted d-flex align-items-center mb-4 py-2">
-        <i class="bi bi-info-circle text-caramel me-2 fs-6"></i>
-        <span><strong>Note:</strong> Revenue totals strictly exclude cancelled bookings and refunded payments.</span>
-    </div>
-
-    <!-- Horizontal View Tabs (English Only): Overview Chart vs Detailed Table -->
-    <ul class="nav nav-pills mb-3 gap-2" id="revenueViewTabs" role="tablist">
+    <!-- View tabs: Overview vs Detailed table -->
+    <ul class="nav ss-tabs mb-3" id="revenueViewTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active rounded-pill px-4 py-2 fw-semibold" id="tab-chart-btn" data-bs-toggle="tab" data-bs-target="#tab-chart-pane" type="button" role="tab" aria-controls="tab-chart-pane" aria-selected="true">
-                <i class="bi bi-bar-chart-line me-1"></i> Overview Chart
-            </button>
+            <button class="ss-tabs__link ss-tabs__link--active active" id="tab-chart-btn" data-bs-toggle="tab" data-bs-target="#tab-chart-pane"
+                    type="button" role="tab" aria-controls="tab-chart-pane" aria-selected="true">Overview</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link rounded-pill px-4 py-2 fw-semibold" id="tab-table-btn" data-bs-toggle="tab" data-bs-target="#tab-table-pane" type="button" role="tab" aria-controls="tab-table-pane" aria-selected="false">
-                <i class="bi bi-table me-1"></i> Detailed Table
-            </button>
+            <button class="ss-tabs__link" id="tab-table-btn" data-bs-toggle="tab" data-bs-target="#tab-table-pane"
+                    type="button" role="tab" aria-controls="tab-table-pane" aria-selected="false">Detailed table</button>
         </li>
     </ul>
 
     <div class="tab-content" id="revenueTabContent">
-        <!-- Tab 1: Chart Section -->
+        <!-- Overview -->
         <div class="tab-pane fade show active" id="tab-chart-pane" role="tabpanel" aria-labelledby="tab-chart-btn">
-            <!-- Timeline Chart Card -->
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white py-3 border-0">
-                    <h5 class="card-title h6 mb-0 fw-bold">Revenue Timeline (${e:esc(mode)})</h5>
+            <section class="ss-rev__card">
+                <h2 class="ss-rev__card-title">Revenue ${mode == 'day' ? 'per day' : (mode == 'month' ? 'per month' : 'per year')}</h2>
+                <div id="revenueChartStatus"></div>
+                <div class="ss-rev__chart">
+                    <canvas id="revenueChart"></canvas>
                 </div>
-                <div class="card-body">
-                    <div id="revenueChartStatus"></div>
-                    <div style="height: 320px; position: relative;">
-                        <canvas id="revenueChart"></canvas>
-                    </div>
-                </div>
-            </div>
+            </section>
 
-            <!-- Second Breakdown: Revenue by Room and by Slot (S1-S4) -->
-            <div class="row g-4 mb-4">
-                <!-- Revenue by Room -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-                            <h5 class="card-title h6 mb-0 fw-bold">Revenue by Room</h5>
-                            <span class="badge bg-light text-espresso border">${empty revenueByRoom ? 0 : revenueByRoom.size()} Rooms</span>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th scope="col" class="ps-3">Room</th>
-                                            <th scope="col" class="text-center">Bookings</th>
-                                            <th scope="col" class="text-end">Revenue (VND)</th>
-                                            <th scope="col" class="pe-3" style="width: 110px;">Share</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <t:forEach items="${revenueByRoom}" var="rm">
-                                            <tr>
-                                                <td class="ps-3">
-                                                    <span class="badge bg-light text-dark border me-1">Room ${e:esc(rm.roomNumber)}</span>
-                                                    <span class="small fw-semibold text-espresso">${e:esc(rm.displayName)}</span>
-                                                </td>
-                                                <td class="text-center font-monospace small">${rm.bookingCount}</td>
-                                                <td class="text-end font-monospace small fw-semibold ${rm.revenue > 0 ? 'text-success' : 'text-muted'}">${e:money(rm.revenue)}</td>
-                                                <td class="pe-3">
-                                                    <div class="d-flex align-items-center gap-1">
-                                                        <div class="progress flex-grow-1" style="height: 6px;">
-                                                            <div class="progress-bar" role="progressbar" style="width: ${rm.percent}%; background-color: #9A5B2E;" aria-valuenow="${rm.percent}" aria-valuemin="0" aria-valuemax="100"></div>
-                                                        </div>
-                                                        <span class="small text-muted font-monospace" style="font-size: 0.7rem; width: 32px; text-align: right;">${rm.percent}%</span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </t:forEach>
-                                        <t:if test="${empty revenueByRoom}">
-                                            <tr><td colspan="4" class="text-center py-3 text-muted small">No room revenue data</td></tr>
-                                        </t:if>
-                                    </tbody>
-                                    <tfoot class="table-light fw-bold border-top">
-                                        <tr>
-                                            <td class="ps-3 small">Total</td>
-                                            <td class="text-center font-monospace small">${totalBookings}</td>
-                                            <td class="text-end font-monospace small text-success">${e:money(totalRevenue)}</td>
-                                            <td class="pe-3 text-end small font-monospace">100%</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Revenue by Slot (S1-S4) -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-                            <h5 class="card-title h6 mb-0 fw-bold">Revenue by Time Slot (S1–S4)</h5>
-                            <span class="badge bg-light text-espresso border">4 Slots</span>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th scope="col" class="ps-3">Slot</th>
-                                            <th scope="col" class="text-center">Slots Booked</th>
-                                            <th scope="col" class="text-end">Revenue (VND)</th>
-                                            <th scope="col" class="pe-3" style="width: 110px;">Share</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <t:forEach items="${revenueBySlot}" var="sl">
-                                            <tr>
-                                                <td class="ps-3">
-                                                    <span class="badge bg-light text-espresso border font-monospace me-1">${e:esc(sl.slotCode)}</span>
-                                                    <span class="small fw-semibold text-espresso">${e:esc(sl.slotName)}</span>
-                                                </td>
-                                                <td class="text-center font-monospace small">${sl.slotCount}</td>
-                                                <td class="text-end font-monospace small fw-semibold ${sl.revenue > 0 ? 'text-success' : 'text-muted'}">${e:money(sl.revenue)}</td>
-                                                <td class="pe-3">
-                                                    <div class="d-flex align-items-center gap-1">
-                                                        <div class="progress flex-grow-1" style="height: 6px;">
-                                                            <div class="progress-bar" role="progressbar" style="width: ${sl.percent}%; background-color: #9A5B2E;" aria-valuenow="${sl.percent}" aria-valuemin="0" aria-valuemax="100"></div>
-                                                        </div>
-                                                        <span class="small text-muted font-monospace" style="font-size: 0.7rem; width: 32px; text-align: right;">${sl.percent}%</span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </t:forEach>
-                                        <t:if test="${empty revenueBySlot}">
-                                            <tr><td colspan="4" class="text-center py-3 text-muted small">No slot revenue data</td></tr>
-                                        </t:if>
-                                    </tbody>
-                                    <tfoot class="table-light fw-bold border-top">
-                                        <tr>
-                                            <td class="ps-3 small">Total</td>
-                                            <td class="text-center font-monospace small">${kpis.bookedSlots}</td>
-                                            <td class="text-end font-monospace small text-success">${e:money(totalRevenue)}</td>
-                                            <td class="pe-3 text-end small font-monospace">100%</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab 2: Detailed Table Section with Zero Revenue Filter Switch -->
-        <div class="tab-pane fade" id="tab-table-pane" role="tabpanel" aria-labelledby="tab-table-btn">
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <h5 class="card-title h6 mb-0 fw-bold">Revenue Details Table</h5>
-                    <!-- Quick Toggle: Hide 0 VND rows -->
-                    <div class="form-check form-switch m-0 d-flex align-items-center gap-2">
-                        <input class="form-check-input" type="checkbox" id="hideZeroRevenueSwitch" role="switch">
-                        <label class="form-check-label small fw-semibold text-muted" for="hideZeroRevenueSwitch">
-                            Hide zero-revenue rows
-                        </label>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 680px; overflow-y: auto;">
-                        <table class="table table-hover table-striped align-middle mb-0" id="revenueDetailsTable">
-                            <thead class="table-light sticky-top" style="position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                <tr>
-                                    <th scope="col" class="ps-3">Period</th>
-                                    <th scope="col" class="text-center">Bookings Paid</th>
-                                    <th scope="col" class="pe-3 text-end">Revenue (VND)</th>
-                                </tr>
+            <div class="ss-rev__split">
+                <section class="ss-rev__card">
+                    <h2 class="ss-rev__card-title">By room</h2>
+                    <t:if test="${empty revenueByRoom}"><p class="ss-rev__empty">No room revenue in this range.</p></t:if>
+                    <t:if test="${not empty revenueByRoom}">
+                        <table class="ss-rev__share">
+                            <thead>
+                                <tr><th scope="col">Room</th><th scope="col" class="ss-rev__num">Bookings</th><th scope="col" class="ss-rev__num">Revenue</th><th scope="col">Share</th></tr>
                             </thead>
                             <tbody>
-                                <t:if test="${empty buckets}">
-                                    <tr><td colspan="3" class="text-center py-4 text-muted">No revenue in this range.</td></tr>
-                                </t:if>
-                                <t:forEach items="${buckets}" var="b">
-                                    <tr class="revenue-row ${b.revenue == 0 ? 'zero-revenue-row' : ''}">
-                                        <td class="ps-3 font-monospace">${e:esc(b.period)}</td>
-                                        <td class="text-center font-monospace">${b.bookingCount}</td>
-                                        <td class="pe-3 text-end font-monospace fw-semibold ${b.revenue > 0 ? 'text-success' : 'text-muted'}">${e:money(b.revenue)}</td>
+                                <t:forEach items="${revenueByRoom}" var="rm">
+                                    <tr>
+                                        <td><span class="ss-rev__name">Room ${e:esc(rm.roomNumber)}</span> <span class="ss-rev__sub">${e:esc(rm.displayName)}</span></td>
+                                        <td class="ss-rev__num">${rm.bookingCount}</td>
+                                        <td class="ss-rev__num">${e:money(rm.revenue)}</td>
+                                        <td class="ss-rev__bar-cell">
+                                            <span class="ss-rev__bar" aria-hidden="true"><span style="width: ${rm.percent}%;"></span></span>
+                                            <span class="ss-rev__pct">${rm.percent}%</span>
+                                        </td>
                                     </tr>
                                 </t:forEach>
                             </tbody>
-                            <tfoot class="table-light fw-bold border-top">
-                                <tr>
-                                    <td class="ps-3">Total</td>
-                                    <td class="text-center font-monospace">${totalBookings}</td>
-                                    <td class="pe-3 text-end font-monospace text-success">${e:money(totalRevenue)}</td>
-                                </tr>
-                            </tfoot>
                         </table>
+                    </t:if>
+                </section>
+
+                <section class="ss-rev__card">
+                    <h2 class="ss-rev__card-title">By time slot</h2>
+                    <t:if test="${empty revenueBySlot}"><p class="ss-rev__empty">No slot revenue in this range.</p></t:if>
+                    <t:if test="${not empty revenueBySlot}">
+                        <table class="ss-rev__share">
+                            <thead>
+                                <tr><th scope="col">Slot</th><th scope="col" class="ss-rev__num">Slots booked</th><th scope="col" class="ss-rev__num">Revenue</th><th scope="col">Share</th></tr>
+                            </thead>
+                            <tbody>
+                                <t:forEach items="${revenueBySlot}" var="sl">
+                                    <tr>
+                                        <td><span class="ss-rev__name">${e:esc(sl.slotName)}</span> <span class="ss-rev__sub">${e:esc(sl.slotCode)}</span></td>
+                                        <td class="ss-rev__num">${sl.slotCount}</td>
+                                        <td class="ss-rev__num">${e:money(sl.revenue)}</td>
+                                        <td class="ss-rev__bar-cell">
+                                            <span class="ss-rev__bar" aria-hidden="true"><span style="width: ${sl.percent}%;"></span></span>
+                                            <span class="ss-rev__pct">${sl.percent}%</span>
+                                        </td>
+                                    </tr>
+                                </t:forEach>
+                            </tbody>
+                        </table>
+                    </t:if>
+                </section>
+            </div>
+        </div>
+
+        <!-- Detailed table: one page scroll, sticky header and total row -->
+        <div class="tab-pane fade" id="tab-table-pane" role="tabpanel" aria-labelledby="tab-table-btn">
+            <section class="ss-rev__card">
+                <div class="ss-rev__card-head">
+                    <h2 class="ss-rev__card-title">Revenue ${mode == 'day' ? 'per day' : (mode == 'month' ? 'per month' : 'per year')}</h2>
+                    <div class="ss-rev__card-actions">
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" id="hideZeroRevenueSwitch" role="switch">
+                            <label class="form-check-label" for="hideZeroRevenueSwitch">Hide zero rows</label>
+                        </div>
+                        <a class="btn btn-outline-soft btn-sm" id="revenueExportBtn"
+                           href="${pageContext.request.contextPath}/admin/reports/revenue/export?mode=${e:esc(mode)}&amp;from=${e:esc(from)}&amp;to=${e:esc(to)}"
+                           data-base-href="${pageContext.request.contextPath}/admin/reports/revenue/export?mode=${e:esc(mode)}&amp;from=${e:esc(from)}&amp;to=${e:esc(to)}">
+                            <i class="bi bi-download" aria-hidden="true"></i> Export CSV
+                        </a>
                     </div>
                 </div>
-            </div>
+                <table class="ss-rev__detail" id="revenueDetailsTable">
+                    <thead>
+                        <tr>
+                            <th scope="col">Period</th>
+                            <th scope="col" class="ss-rev__num" style="width: 120px;">Bookings</th>
+                            <th scope="col" class="ss-rev__num" style="width: 160px;">Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t:if test="${empty buckets}">
+                            <tr><td colspan="3" class="ss-rev__empty">No revenue in this range.</td></tr>
+                        </t:if>
+                        <t:forEach items="${buckets}" var="b">
+                            <tr class="revenue-row ${b.revenue == 0 ? 'zero-revenue-row ss-rev__row--zero' : ''}">
+                                <td>${e:esc(b.label)}</td>
+                                <td class="ss-rev__num">${b.bookingCount}</td>
+                                <td class="ss-rev__num">${e:money(b.revenue)}</td>
+                            </tr>
+                        </t:forEach>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th scope="row">Total</th>
+                            <td class="ss-rev__num">${totalBookings}</td>
+                            <td class="ss-rev__num">${e:money(totalRevenue)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </section>
         </div>
     </div>
 
@@ -342,6 +218,29 @@
             var dataUrl = '${pageContext.request.contextPath}/admin/reports/revenue/data?mode=' + encodeURIComponent(mode)
                         + '&from=' + encodeURIComponent(fromDate)
                         + '&to=' + encodeURIComponent(toDate);
+            var css = getComputedStyle(document.documentElement);
+            var barColor = (css.getPropertyValue('--color-caramel') || '').trim() || '#9A5B2E';
+
+            function compactVnd(val) {
+                if (val >= 1000000) {
+                    return (val / 1000000).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'M';
+                } else if (val >= 1000) {
+                    return (val / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 }) + 'k';
+                }
+                return Number(val).toLocaleString('en-US');
+            }
+
+            function niceLabel(lbl) {
+                if (lbl && lbl.length === 10 && lbl.indexOf('-') === 4) {
+                    var p = lbl.split('-');
+                    return p[2] + '/' + p[1] + '/' + p[0];
+                }
+                if (lbl && lbl.length === 7 && lbl.indexOf('-') === 4) {
+                    var q = lbl.split('-');
+                    return q[1] + '/' + q[0];
+                }
+                return lbl;
+            }
 
             if (window.SmartStayCharts) {
                 window.SmartStayCharts.load({
@@ -353,7 +252,7 @@
                         var statusEl = document.getElementById('revenueChartStatus');
                         if (!data || !data.labels || data.labels.length === 0 || data.totalRevenue === 0) {
                             if (statusEl) {
-                                statusEl.innerHTML = '<div class="alert alert-info py-2 px-3 small">No revenue in this range.</div>';
+                                statusEl.innerHTML = '<p class="ss-rev__empty">No revenue in this range.</p>';
                             }
                             return {
                                 type: 'bar',
@@ -362,13 +261,13 @@
                             };
                         }
 
-                        // Format labels for X-axis (dd/MM for day mode)
+                        // dd/MM on the axis for days, MM/yyyy for months; auto-skip keeps it readable
                         var formattedLabels = data.labels.map(function(lbl) {
                             if (mode === 'day' && lbl && lbl.length === 10 && lbl.indexOf('-') === 4) {
                                 var parts = lbl.split('-');
                                 return parts[2] + '/' + parts[1];
                             }
-                            return lbl;
+                            return niceLabel(lbl);
                         });
 
                         return {
@@ -376,9 +275,9 @@
                             data: {
                                 labels: formattedLabels,
                                 datasets: [{
-                                    label: 'Revenue (\u20AB)',
+                                    label: 'Revenue (VND)',
                                     data: data.values,
-                                    backgroundColor: '#9A5B2E',
+                                    backgroundColor: barColor,
                                     borderRadius: 4
                                 }]
                             },
@@ -386,12 +285,12 @@
                                 responsive: true,
                                 maintainAspectRatio: false,
                                 plugins: {
+                                    legend: { display: false },
                                     tooltip: {
                                         callbacks: {
                                             title: function(items) {
                                                 if (items && items.length > 0) {
-                                                    var idx = items[0].dataIndex;
-                                                    return data.labels[idx] || items[0].label;
+                                                    return niceLabel(data.labels[items[0].dataIndex]) || items[0].label;
                                                 }
                                                 return '';
                                             },
@@ -409,27 +308,12 @@
                                 scales: {
                                     x: {
                                         grid: { display: false },
-                                        ticks: {
-                                            autoSkip: true,
-                                            maxRotation: 0,
-                                            minRotation: 0,
-                                            font: { size: 11 }
-                                        }
+                                        ticks: { autoSkip: true, maxRotation: 0, minRotation: 0, font: { size: 11 } }
                                     },
                                     y: {
                                         beginAtZero: true,
                                         grid: { color: 'rgba(74, 51, 38, 0.08)' },
-                                        ticks: {
-                                            font: { size: 11 },
-                                            callback: function(val) {
-                                                if (val >= 1000000) {
-                                                    return (val / 1000000).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'M';
-                                                } else if (val >= 1000) {
-                                                    return (val / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 }) + 'k';
-                                                }
-                                                return Number(val).toLocaleString('en-US');
-                                            }
-                                        }
+                                        ticks: { font: { size: 11 }, callback: compactVnd }
                                     }
                                 }
                             }
@@ -439,12 +323,16 @@
             }
 
             var zeroSwitch = document.getElementById('hideZeroRevenueSwitch');
+            var exportBtn = document.getElementById('revenueExportBtn');
             if (zeroSwitch) {
                 zeroSwitch.addEventListener('change', function() {
-                    var zeroRows = document.querySelectorAll('.zero-revenue-row');
-                    zeroRows.forEach(function(row) {
+                    document.querySelectorAll('.zero-revenue-row').forEach(function(row) {
                         row.style.display = zeroSwitch.checked ? 'none' : '';
                     });
+                    // CSV follows the same rows as the table
+                    if (exportBtn) {
+                        exportBtn.href = exportBtn.getAttribute('data-base-href') + (zeroSwitch.checked ? '&hideZero=1' : '');
+                    }
                 });
             }
 
@@ -452,6 +340,19 @@
             if (chartTabBtn) {
                 chartTabBtn.addEventListener('shown.bs.tab', function() {
                     window.dispatchEvent(new Event('resize'));
+                });
+            }
+            // ss-tabs active style follows Bootstrap's tab state
+            document.querySelectorAll('#revenueViewTabs [data-bs-toggle="tab"]').forEach(function(btn) {
+                btn.addEventListener('shown.bs.tab', function() {
+                    document.querySelectorAll('#revenueViewTabs .ss-tabs__link').forEach(function(b) {
+                        b.classList.toggle('ss-tabs__link--active', b === btn);
+                    });
+                });
+            });
+            if (window.bootstrap && bootstrap.Tooltip) {
+                document.querySelectorAll('.ss-rev__info[data-bs-toggle="tooltip"]').forEach(function(el) {
+                    new bootstrap.Tooltip(el);
                 });
             }
         })();

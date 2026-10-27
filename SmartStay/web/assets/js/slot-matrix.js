@@ -193,7 +193,7 @@
                     '<div class="matrix-toast-message">' + message + '</div>' +
                     '<div class="matrix-toast-actions">' + actionsHtml + '</div>' +
                 '</div>' +
-                '<button type="button" class="matrix-toast-close" title="Close">&times;</button>';
+                '<button type="button" class="matrix-toast-close" title="Close" aria-label="Close message">&times;</button>';
 
             container.appendChild(toast);
 
@@ -234,14 +234,14 @@
                 if (selectedSlots.length === 0) {
                     btnContinue.disabled = true;
                     btnContinue.classList.remove('btn-invalid-slots');
-                    btnContinue.innerHTML = '<span>Continue to Payment</span> <i class="bi bi-arrow-right"></i>';
+                    btnContinue.innerHTML = '<span>Continue to payment</span>';
                 } else if (!consecutive) {
                     btnContinue.disabled = true;
                     btnContinue.classList.add('btn-invalid-slots');
-                    btnContinue.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i><span>Non-Consecutive Slots</span>';
+                    btnContinue.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i><span>Choose slots next to each other</span>';
                 } else {
                     btnContinue.classList.remove('btn-invalid-slots');
-                    btnContinue.innerHTML = '<span>Continue to Payment</span> <i class="bi bi-arrow-right"></i>';
+                    btnContinue.innerHTML = '<span>Continue to payment</span>';
                     if (termsConsent) {
                         btnContinue.disabled = !termsConsent.checked;
                     } else {
@@ -254,14 +254,14 @@
                 if (selectedSlots.length === 0) {
                     btnMobileContinue.disabled = true;
                     btnMobileContinue.classList.remove('btn-invalid-slots');
-                    btnMobileContinue.innerHTML = '<span>Continue to Payment</span> <i class="bi bi-arrow-right"></i>';
+                    btnMobileContinue.innerHTML = '<span>Continue to payment</span>';
                 } else if (!consecutive) {
                     btnMobileContinue.disabled = true;
                     btnMobileContinue.classList.add('btn-invalid-slots');
-                    btnMobileContinue.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i><span>Non-Consecutive Slots</span>';
+                    btnMobileContinue.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i><span>Choose slots next to each other</span>';
                 } else {
                     btnMobileContinue.classList.remove('btn-invalid-slots');
-                    btnMobileContinue.innerHTML = '<span>Continue to Payment</span> <i class="bi bi-arrow-right"></i>';
+                    btnMobileContinue.innerHTML = '<span>Continue to payment</span>';
                     var isConsentChecked = (mobileTermsConsent && mobileTermsConsent.checked) || (termsConsent && termsConsent.checked);
                     btnMobileContinue.disabled = !isConsentChecked;
                 }
@@ -271,12 +271,12 @@
                 if (selectedSlots.length > 0 && !consecutive) {
                     btnLogin.classList.add('disabled', 'btn-invalid-slots');
                     btnLogin.setAttribute('aria-disabled', 'true');
-                    btnLogin.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i><span>Non-Consecutive Slots</span>';
+                    btnLogin.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i><span>Choose slots next to each other</span>';
                     btnLogin.style.pointerEvents = 'none';
                 } else {
                     btnLogin.classList.remove('disabled', 'btn-invalid-slots');
                     btnLogin.removeAttribute('aria-disabled');
-                    btnLogin.innerHTML = '<span>Login to Book</span> <i class="bi bi-arrow-right"></i>';
+                    btnLogin.innerHTML = '<span>Log in to book</span>';
                     btnLogin.style.pointerEvents = 'auto';
                 }
             }

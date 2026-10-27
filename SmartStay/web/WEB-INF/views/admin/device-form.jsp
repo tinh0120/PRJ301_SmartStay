@@ -4,34 +4,12 @@
 <t:layout title="${isEdit ? 'Edit Device' : 'New Device'}" active="devices">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <nav aria-label="breadcrumb" class="mb-3">
-                <ol class="breadcrumb boutique-breadcrumb m-0">
-                    <li class="breadcrumb-item">
-                        <a href="${pageContext.request.contextPath}/admin/dashboard" class="boutique-breadcrumb-link">
-                            <i class="bi bi-house-door me-1"></i>Dashboard
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="${pageContext.request.contextPath}/admin/devices" class="boutique-breadcrumb-link">
-                            Devices
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">${isEdit ? 'Edit Device' : 'New Device'}</li>
-                </ol>
-            </nav>
-
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="ss-page-header">
                 <div>
-                    <h1 class="h2 mb-1">${isEdit ? 'Edit device' : 'Register new device'}</h1>
-                    <p class="text-muted small mb-0">
-                        ${isEdit ? 'Update hardware attributes and room mapping' : 'Add a new smart lock or security camera to the property'}
-                    </p>
+                    <h1 class="ss-page-header__title">${isEdit ? 'Edit device' : 'Add a device'}</h1>
+                    <p class="ss-page-header__subtitle">${isEdit ? 'Change its name, type or the room it belongs to.' : 'Register a door lock or sensor so it can send data.'}</p>
                 </div>
-                <div>
-                    <a href="${pageContext.request.contextPath}/admin/devices" class="btn btn-outline-secondary btn-sm">
-                        &larr; Back to devices
-                    </a>
-                </div>
+                <a href="${pageContext.request.contextPath}/admin/devices" class="btn btn-outline-soft btn-sm"><i class="bi bi-chevron-left" aria-hidden="true"></i> Devices</a>
             </div>
 
             <t:if test="${not empty errors['general']}">
@@ -114,7 +92,7 @@
                                     <option value="">- Shared Device (Main Entrance / Lobby) -</option>
                                     <t:forEach items="${rooms}" var="r">
                                         <option value="${r.roomId}" ${device.roomId == r.roomId ? 'selected' : ''}>
-                                            Room ${e:esc(r.roomNumber)} (${e:esc(r.status)})
+                                            Room ${e:esc(r.roomNumber)} (${e:esc(e:humanStatus(r.status))})
                                         </option>
                                     </t:forEach>
                                 </select>
@@ -142,8 +120,8 @@
 
                         <t:if test="${isEdit}">
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Last seen heartbeat</label>
-                                <input type="text" class="form-control bg-light" readonly
+                                <label class="form-label fw-semibold" for="deviceLastSeen">Last seen heartbeat</label>
+                                <input type="text" class="form-control bg-light" id="deviceLastSeen" readonly
                                        value="${not empty device.lastSeenAt ? e:datetime(device.lastSeenAt) : 'Never'}">
                                 <div class="form-text small">Recorded automatically when telemetry is ingested.</div>
                             </div>
@@ -224,7 +202,7 @@
                             <div class="modal-body">
                                 <p class="small mb-2">New 32-character API key for <strong class="font-monospace text-espresso">${e:esc(device.deviceId)}</strong>:</p>
                                 <div class="input-group mb-3">
-                                    <input type="text" class="form-control font-monospace bg-light fw-bold" id="revealApiKeyInput" readonly>
+                                    <input type="text" class="form-control font-monospace bg-light fw-bold" id="revealApiKeyInput" aria-label="New API key" readonly>
                                     <button class="btn btn-primary" type="button" id="copyApiKeyBtn">
                                         <i class="bi bi-clipboard me-1"></i><span id="copyBtnText">Copy</span>
                                     </button>

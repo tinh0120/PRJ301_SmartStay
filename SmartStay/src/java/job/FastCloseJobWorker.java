@@ -6,7 +6,7 @@ import java.util.logging.Logger;
 /**
  * Fast Close-Job Worker (Cycle: 5 seconds).
  * Dedicated to high-urgency lifecycle events:
- * - Expiring pending bookings with elapsed 10-minute hold window.
+ * - Expiring pending bookings whose hold window (AppConstants.BOOKING_HOLD_MINUTES) elapsed.
  * - Expiring pending payment gateway transactions.
  * - Activating access credentials when check-in window opens.
  * - Auto checkout when booking stay concludes.
@@ -19,9 +19,17 @@ public class FastCloseJobWorker implements Runnable {
 
     @Override
     public void run() {
+        JobCoordinator.runExclusive(FastCloseJobWorker::runJobs);
+    }
+
+    /**
+     * One cycle of the fast jobs. The caller must hold the job lock (see JobCoordinator).
+     * This cycle sends no e-mail.
+     */
+    public static void runJobs() {
         LOGGER.finest("FastCloseJobWorker tick started.");
 
-        // 1. ExpirePendingBookings (10-minute hold window)
+        // 1. ExpirePendingBookings (AppConstants.BOOKING_HOLD_MINUTES hold window)
         try {
             SchedulerJobs.expirePendingBookings();
         } catch (Exception e) {

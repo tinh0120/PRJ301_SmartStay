@@ -2,204 +2,130 @@
 <%@ taglib prefix="e" uri="/WEB-INF/tld/smartstay.tld" %>
 <%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
 <t:layout title="Rooms" active="admin-rooms">
-    <!-- Boutique Breadcrumb Navigation -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb boutique-breadcrumb m-0">
-            <li class="breadcrumb-item">
-                <a href="${pageContext.request.contextPath}/admin/dashboard" class="boutique-breadcrumb-link">
-                    <i class="bi bi-house-door me-1"></i>Dashboard
-                </a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">Rooms</li>
-        </ol>
-    </nav>
-
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <%-- R8: card grid, one status badge per card, S1–S4 dots follow the room status, Edit + ⋯ menu. --%>
+    <div class="ss-page-header">
         <div>
-            <h1 class="h2 mb-1">Room management</h1>
-            <p class="text-muted small mb-0">Configure homestay rooms, status, and pricing</p>
+            <h1 class="ss-page-header__title">Rooms</h1>
+            <p class="ss-page-header__subtitle">Details, photos and visibility. Prices and slots are on each room's Slots &amp; Pricing tab.</p>
         </div>
-        <div>
-            <a href="${pageContext.request.contextPath}/admin/rooms/edit" class="btn btn-primary btn-sm">
-                + New room
-            </a>
-        </div>
-    </div>
-
-    <!-- Room Status KPI Summary Strip -->
-    <div class="card border-0 shadow-sm rounded-4 p-3 mb-4" style="background: #FFFDF9; border: 1.5px solid #D9B991 !important;">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <span class="fw-bold text-espresso fs-6 me-2"><i class="bi bi-door-open-fill text-caramel me-1"></i>Total Rooms: <strong>${pageResult.totalItems}</strong></span>
-                <a href="${pageContext.request.contextPath}/admin/rooms?status=AVAILABLE" class="badge rounded-pill text-decoration-none py-2 px-3 ${pr.getFilter('status') == 'AVAILABLE' ? 'bg-success text-white shadow-sm' : 'badge-boutique-available'}">
-                    🟢 Available: <strong>${roomCounts['AVAILABLE'] != null ? roomCounts['AVAILABLE'] : 0}</strong>
-                </a>
-                <a href="${pageContext.request.contextPath}/admin/rooms?status=OCCUPIED" class="badge rounded-pill text-decoration-none py-2 px-3 ${pr.getFilter('status') == 'OCCUPIED' ? 'bg-caramel text-white shadow-sm' : 'badge-boutique-occupied'}">
-                    🔴 Occupied: <strong>${roomCounts['OCCUPIED'] != null ? roomCounts['OCCUPIED'] : 0}</strong>
-                </a>
-                <a href="${pageContext.request.contextPath}/admin/rooms?status=NEEDS_CLEANING" class="badge rounded-pill text-decoration-none py-2 px-3 ${pr.getFilter('status') == 'NEEDS_CLEANING' ? 'bg-warning text-dark shadow-sm' : 'badge-boutique-cleaning'}">
-                    🟡 Needs Cleaning: <strong>${roomCounts['NEEDS_CLEANING'] != null ? roomCounts['NEEDS_CLEANING'] : 0}</strong>
-                </a>
-                <a href="${pageContext.request.contextPath}/admin/rooms?status=MAINTENANCE" class="badge rounded-pill text-decoration-none py-2 px-3 ${pr.getFilter('status') == 'MAINTENANCE' ? 'bg-cocoa text-white shadow-sm' : 'badge-boutique-maintenance'}">
-                    ⚪ Maintenance: <strong>${roomCounts['MAINTENANCE'] != null ? roomCounts['MAINTENANCE'] : 0}</strong>
-                </a>
-            </div>
-            <t:if test="${not empty pr.getFilter('status')}">
-                <a href="${pageContext.request.contextPath}/admin/rooms" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
-                    <i class="bi bi-x-circle me-1"></i>View all
-                </a>
-            </t:if>
-        </div>
+        <a href="${pageContext.request.contextPath}/admin/rooms/edit" class="btn btn-primary btn-sm rounded-pill px-3">
+            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>New room
+        </a>
     </div>
 
     <t:if test="${not empty dbError}">
         <div class="alert alert-danger" role="alert">${e:esc(dbError)}</div>
     </t:if>
 
-    <div class="card mb-4 shadow-sm">
-        <div class="card-body">
-            <form action="${pageContext.request.contextPath}/admin/rooms" method="get" class="row g-2 align-items-end">
-                <input type="hidden" name="sort" value="${e:esc(pr.sort)}">
-                <input type="hidden" name="dir" value="${e:esc(pr.dir)}">
-
-                <div class="col-md-3">
-                    <label for="keyword" class="form-label small fw-semibold">Search</label>
-                    <input type="text" class="form-control form-control-sm" id="keyword" name="keyword"
-                           placeholder="Room number or description..." maxlength="100"
-                           value="${e:esc(pr.keyword)}">
-                </div>
-
-                <div class="col-md-2">
-                    <label for="status" class="form-label small fw-semibold">Status</label>
-                    <select class="form-select form-select-sm" id="status" name="status">
-                        <option value="">All statuses</option>
-                        <option value="AVAILABLE" ${pr.getFilter('status') == 'AVAILABLE' ? 'selected' : ''}>Available</option>
-                        <option value="OCCUPIED" ${pr.getFilter('status') == 'OCCUPIED' ? 'selected' : ''}>Occupied</option>
-                        <option value="NEEDS_CLEANING" ${pr.getFilter('status') == 'NEEDS_CLEANING' ? 'selected' : ''}>Needs cleaning</option>
-                        <option value="MAINTENANCE" ${pr.getFilter('status') == 'MAINTENANCE' ? 'selected' : ''}>Maintenance</option>
-                    </select>
-                </div>
-
-                <div class="col-md-2">
-                    <label for="floor" class="form-label small fw-semibold">Floor</label>
-                    <input type="number" class="form-control form-control-sm" id="floor" name="floor" min="0"
-                           placeholder="Any floor" value="${e:esc(pr.getFilter('floor'))}">
-                </div>
-
-                <div class="col-md-2">
-                    <label for="active" class="form-label small fw-semibold">Active</label>
-                    <select class="form-select form-select-sm" id="active" name="active">
-                        <option value="">All</option>
-                        <option value="1" ${pr.getFilter('active') == '1' ? 'selected' : ''}>Active only</option>
-                        <option value="0" ${pr.getFilter('active') == '0' ? 'selected' : ''}>Inactive only</option>
-                    </select>
-                </div>
-
-                <div class="col-md-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary btn-sm px-3">Filter</button>
-                    <a href="${pageContext.request.contextPath}/admin/rooms" class="btn btn-outline-secondary btn-sm px-3">Reset</a>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div class="card shadow-sm mb-4">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th scope="col" class="ps-3">
-                                <t:sortLink result="${pageResult}" baseUrl="${pageContext.request.contextPath}/admin/rooms" column="number" label="Room #"/>
-                            </th>
-                            <th scope="col">
-                                <t:sortLink result="${pageResult}" baseUrl="${pageContext.request.contextPath}/admin/rooms" column="floor" label="Floor"/>
-                            </th>
-                            <th scope="col">
-                                <t:sortLink result="${pageResult}" baseUrl="${pageContext.request.contextPath}/admin/rooms" column="capacity" label="Capacity"/>
-                            </th>
-                            <th scope="col">Active</th>
-                            <th scope="col">
-                                <t:sortLink result="${pageResult}" baseUrl="${pageContext.request.contextPath}/admin/rooms" column="price" label="Cheapest slot"/>
-                            </th>
-                            <th scope="col" class="pe-3 text-end">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <t:if test="${empty pageResult.items}">
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-4">No records found</td>
-                            </tr>
-                        </t:if>
-                        <t:forEach items="${pageResult.items}" var="r">
-                            <tr>
-                                <td class="ps-3 fw-semibold">
-                                    <div class="d-flex align-items-center flex-wrap gap-1">
-                                        <span>${e:esc(r.displayTitle)}</span>
-                                        <span class="text-muted small fw-normal">(${e:esc(r.roomNumber)})</span>
-                                        <t:if test="${r.status == 'MAINTENANCE'}">
-                                            <span class="badge bg-danger ms-1" style="font-size: 0.68rem;">MAINTENANCE</span>
-                                        </t:if>
-                                    </div>
-                                    <t:if test="${not empty r.locationDescription}">
-                                        <div class="text-muted small fw-normal">${e:esc(r.locationDescription)}</div>
-                                    </t:if>
-                                    <!-- Today's 4 Slot Timeline Badges -->
-                                    <t:if test="${not empty r.slots}">
-                                        <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
-                                            <span class="text-muted small fw-normal me-1" style="font-size: 0.72rem;">Today:</span>
-                                            <t:forEach items="${r.slots}" var="s">
-                                                <span class="badge ${s.todayStatus == 'AVAILABLE' ? 'bg-success' : (s.todayStatus == 'BOOKED' ? 'bg-primary' : (s.todayStatus == 'NEEDS_CLEANING' ? 'bg-warning text-dark' : (s.todayStatus == 'MAINTENANCE' ? 'bg-danger' : 'bg-secondary')))}"
-                                                      style="font-size: 0.72rem; padding: 0.2rem 0.4rem; cursor: default;"
-                                                      title="${e:esc(s.slotCode)}: ${e:esc(s.slotName)} (${s.timeRange}) &bull; Status: ${s.todayStatus}">
-                                                    ${e:esc(s.slotCode)}: ${s.todayStatus == 'AVAILABLE' ? 'Available' : (s.todayStatus == 'BOOKED' ? 'Booked' : (s.todayStatus == 'NEEDS_CLEANING' ? 'Cleaning' : (s.todayStatus == 'MAINTENANCE' ? 'Maint' : 'Off')))}
-                                                </span>
-                                            </t:forEach>
-                                        </div>
-                                    </t:if>
-                                </td>
-                                <td>Floor ${r.floorNumber}</td>
-                                <td>${r.capacity} guests</td>
-                                <td>
-                                    <t:if test="${r.active}">
-                                        <span class="badge bg-success">Active</span>
-                                    </t:if>
-                                    <t:if test="${!r.active}">
-                                        <span class="badge bg-secondary">Inactive</span>
-                                    </t:if>
-                                </td>
-                                <td>
-                                    <t:if test="${not empty r.minPrice and r.minPrice > 0}">
-                                        ${e:money(r.minPrice)}
-                                    </t:if>
-                                    <t:if test="${empty r.minPrice or r.minPrice <= 0}">
-                                        <span class="text-muted">-</span>
-                                    </t:if>
-                                </td>
-                                <td class="pe-3 text-end">
-                                    <div class="d-inline-flex gap-1 align-items-center">
-                                        <a href="${pageContext.request.contextPath}/admin/rooms/edit?roomId=${r.roomId}"
-                                           class="btn btn-outline-primary btn-sm py-1 px-3" title="Edit room details and status">
-                                            Edit
-                                        </a>
-
-                                        <!-- Delete Form -->
-                                        <form action="${pageContext.request.contextPath}/admin/rooms/delete" method="post" class="d-inline m-0"
-                                              onsubmit="return confirm('Are you sure you want to delete this room?');">
-                                            <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
-                                            <input type="hidden" name="roomId" value="${r.roomId}">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm py-1 px-3" title="Delete room">
-                                                Delete
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        </t:forEach>
-                    </tbody>
-                </table>
+    <!-- Toolbar: search + status chips -->
+    <form action="${pageContext.request.contextPath}/admin/rooms" method="get" class="ss-toolbar">
+        <input type="hidden" name="status" value="${e:esc(activeChip)}">
+        <div class="ss-toolbar__main">
+            <div class="ss-toolbar__search">
+                <i class="bi bi-search ss-toolbar__search-icon" aria-hidden="true"></i>
+                <label for="keyword" class="visually-hidden">Search rooms</label>
+                <input type="search" class="ss-toolbar__search-input" id="keyword" name="keyword"
+                       placeholder="Room code, name or description" maxlength="100" value="${e:esc(pr.keyword)}">
+            </div>
+            <div class="ss-toolbar__chips" role="group" aria-label="Room status">
+                <a class="ss-chip ${empty activeChip ? 'ss-chip--active' : ''}" ${empty activeChip ? 'aria-current="true"' : ''}
+                   href="${pageContext.request.contextPath}/admin/rooms?${chipBaseQs}">All</a>
+                <a class="ss-chip ${activeChip == 'AVAILABLE' ? 'ss-chip--active' : ''}" ${activeChip == 'AVAILABLE' ? 'aria-current="true"' : ''}
+                   href="${pageContext.request.contextPath}/admin/rooms?${chipBaseQs}&amp;status=AVAILABLE">Available</a>
+                <a class="ss-chip ${activeChip == 'NEEDS_CLEANING' ? 'ss-chip--active' : ''}" ${activeChip == 'NEEDS_CLEANING' ? 'aria-current="true"' : ''}
+                   href="${pageContext.request.contextPath}/admin/rooms?${chipBaseQs}&amp;status=NEEDS_CLEANING">Needs cleaning</a>
+                <a class="ss-chip ${activeChip == 'MAINTENANCE' ? 'ss-chip--active' : ''}" ${activeChip == 'MAINTENANCE' ? 'aria-current="true"' : ''}
+                   href="${pageContext.request.contextPath}/admin/rooms?${chipBaseQs}&amp;status=MAINTENANCE">Maintenance</a>
+                <a class="ss-chip ${activeChip == 'INACTIVE' ? 'ss-chip--active' : ''}" ${activeChip == 'INACTIVE' ? 'aria-current="true"' : ''}
+                   href="${pageContext.request.contextPath}/admin/rooms?${chipBaseQs}&amp;status=INACTIVE">Inactive</a>
             </div>
         </div>
+    </form>
+
+    <t:if test="${empty pageResult.items && empty dbError}">
+        <div class="ss-empty ss-rm-empty">
+            <i class="bi bi-door-closed ss-empty__icon" aria-hidden="true"></i>
+            <p class="ss-empty__title">No rooms match</p>
+            <p class="ss-empty__desc">Choose another status or clear the search.</p>
+            <a href="${pageContext.request.contextPath}/admin/rooms" class="btn btn-outline-soft btn-sm rounded-pill px-3">Show all rooms</a>
+        </div>
+    </t:if>
+
+    <div class="ss-rm-grid">
+        <t:forEach items="${pageResult.items}" var="r">
+            <article class="ss-rm-card ${r.active ? '' : 'ss-rm-card--inactive'}">
+                <div class="ss-rm-card__media">
+                    <img src="${pageContext.request.contextPath}/${r.resolvedImageUrl}" alt="${e:esc(r.displayTitle)}"
+                         class="ss-rm-card__img" width="768" height="576" loading="lazy"
+                         onerror="this.onerror=null; this.src='${pageContext.request.contextPath}/assets/images/branding/hero_img2.jpg';">
+                </div>
+                <div class="ss-rm-card__body">
+                    <div class="ss-rm-card__head">
+                        <div>
+                            <h2 class="ss-rm-card__title">${e:esc(r.displayTitle)}</h2>
+                            <p class="ss-rm-card__code">${e:esc(r.roomNumber)}</p>
+                        </div>
+                        <t:if test="${!r.active}"><span class="ss-badge ss-badge--neutral">Inactive</span></t:if>
+                        <t:if test="${r.active && r.status == 'AVAILABLE'}"><span class="ss-badge ss-badge--success">Available</span></t:if>
+                        <t:if test="${r.active && r.status == 'OCCUPIED'}"><span class="ss-badge ss-badge--neutral">Occupied</span></t:if>
+                        <t:if test="${r.active && r.status == 'NEEDS_CLEANING'}"><span class="ss-badge ss-badge--warning">Needs cleaning</span></t:if>
+                        <t:if test="${r.active && r.status == 'MAINTENANCE'}"><span class="ss-badge ss-badge--danger">Maintenance</span></t:if>
+                    </div>
+                    <p class="ss-rm-card__meta">Floor ${r.floorNumber} &middot; ${r.capacity} ${r.capacity == 1 ? 'guest' : 'guests'}</p>
+                    <p class="ss-rm-card__price">
+                        <t:if test="${not empty r.minPrice and r.minPrice > 0}">From ${e:money(r.minPrice)}</t:if>
+                        <t:if test="${empty r.minPrice or r.minPrice <= 0}">No price set</t:if>
+                    </p>
+                    <t:if test="${not empty r.slots}">
+                        <ul class="ss-rm-card__slots" aria-label="Today's slots">
+                            <t:forEach items="${r.slots}" var="s">
+                                <%-- V4: slot code + a shape per state, so the colour is not the only cue --%>
+                                <li class="ss-rm-card__slot" title="${e:esc(s.slotName)}: ${e:esc(s.todayLabel)}">
+                                    <t:if test="${s.todayStatus == 'AVAILABLE'}"><span class="ss-status-dot ss-status-dot--ok" aria-hidden="true"></span></t:if>
+                                    <t:if test="${s.todayStatus == 'BOOKED'}"><i class="bi bi-person-fill ss-rm-card__slot-icon" aria-hidden="true"></i></t:if>
+                                    <t:if test="${s.todayStatus == 'NEEDS_CLEANING'}"><i class="bi bi-stars ss-rm-card__slot-icon ss-rm-card__slot-icon--warn" aria-hidden="true"></i></t:if>
+                                    <t:if test="${s.todayStatus == 'MAINTENANCE'}"><i class="bi bi-tools ss-rm-card__slot-icon ss-rm-card__slot-icon--danger" aria-hidden="true"></i></t:if>
+                                    <t:if test="${s.todayStatus == 'INACTIVE'}"><i class="bi bi-dash-lg ss-rm-card__slot-icon" aria-hidden="true"></i></t:if>
+                                    <span class="ss-rm-card__slot-code" aria-hidden="true">${e:esc(s.slotCode)}</span>
+                                    <span class="visually-hidden">${e:esc(s.slotName)}: ${e:esc(s.todayLabel)}</span>
+                                </li>
+                            </t:forEach>
+                        </ul>
+                    </t:if>
+                    <div class="ss-rm-card__actions">
+                        <a href="${pageContext.request.contextPath}/admin/rooms/edit?roomId=${r.roomId}" class="btn btn-outline-soft btn-sm px-3">Edit</a>
+                        <div class="dropdown ss-row-menu">
+                            <button class="btn-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                    aria-label="More actions for ${e:esc(r.displayTitle)}">
+                                <i class="bi bi-three-dots" aria-hidden="true"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <t:if test="${sessionScope.permissions.contains('ROOM_SLOT_MANAGE')}">
+                                    <li><a class="dropdown-item" href="${pageContext.request.contextPath}/admin/rooms/slots?roomId=${r.roomId}">Manage slots &amp; prices</a></li>
+                                </t:if>
+                                <li>
+                                    <form action="${pageContext.request.contextPath}/admin/rooms/active" method="post" class="m-0">
+                                        <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                                        <input type="hidden" name="roomId" value="${r.roomId}">
+                                        <input type="hidden" name="active" value="${r.active ? 'false' : 'true'}">
+                                        <button type="submit" class="dropdown-item">${r.active ? 'Deactivate (hide from guests)' : 'Activate (show to guests)'}</button>
+                                    </form>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form action="${pageContext.request.contextPath}/admin/rooms/delete" method="post" class="m-0"
+                                          onsubmit="return confirm('Delete room ${e:esc(r.roomNumber)}? This cannot be undone.');">
+                                        <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                                        <input type="hidden" name="roomId" value="${r.roomId}">
+                                        <button type="submit" class="dropdown-item dropdown-item--destructive">Delete room</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </t:forEach>
     </div>
 
     <t:pagination result="${pageResult}" baseUrl="${pageContext.request.contextPath}/admin/rooms"/>

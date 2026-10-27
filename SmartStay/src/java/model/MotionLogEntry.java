@@ -2,6 +2,7 @@ package model;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Timestamp;
 
 /**
@@ -94,5 +95,50 @@ public class MotionLogEntry implements Serializable {
 
     public void setReceivedAt(Timestamp receivedAt) {
         this.receivedAt = receivedAt;
+    }
+
+    // --- R9 display fields ---
+    private String deviceName;
+    private boolean snapshotAvailable;
+
+    public String getDeviceName() {
+        return deviceName;
+    }
+
+    public void setDeviceName(String deviceName) {
+        this.deviceName = deviceName;
+    }
+
+    /** True only when snapshot_path is set AND the file exists (checked by the servlet). */
+    public boolean isSnapshotAvailable() {
+        return snapshotAvailable;
+    }
+
+    public void setSnapshotAvailable(boolean snapshotAvailable) {
+        this.snapshotAvailable = snapshotAvailable;
+    }
+
+    public String getZoneLabel() {
+        return util.ActivityLog.zoneLabel(zoneId);
+    }
+
+    private Double distanceValue() {
+        return (distanceCm == null) ? null : distanceCm.doubleValue();
+    }
+
+    public int getDistancePercent() {
+        return util.ActivityLog.distancePercent(distanceValue());
+    }
+
+    public boolean isClose() {
+        return util.ActivityLog.isClose(distanceValue());
+    }
+
+    /** Whole centimetres ("75 cm") for the Activity logs motion table (Round 3b item 4). */
+    public String getDistanceRounded() {
+        if (distanceCm == null) {
+            return null;
+        }
+        return distanceCm.setScale(0, RoundingMode.HALF_UP).toPlainString();
     }
 }

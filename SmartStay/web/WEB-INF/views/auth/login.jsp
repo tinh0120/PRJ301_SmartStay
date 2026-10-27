@@ -11,7 +11,7 @@
                             <i class="bi bi-door-open-fill"></i>
                         </span>
                     </div>
-                    <h1 class="auth-title text-center mb-2">Welcome back</h1>
+                    <h1 class="ss-serif auth-title text-center mb-2">Welcome back</h1>
                     <p class="auth-subtitle text-center mb-4">Log in to your <strong>Tini SmartStay</strong> account.</p>
 
                     <t:if test="${not empty globalError}">

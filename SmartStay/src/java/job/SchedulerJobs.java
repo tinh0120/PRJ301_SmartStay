@@ -21,7 +21,31 @@ public final class SchedulerJobs {
 
     private static final Logger LOGGER = Logger.getLogger(SchedulerJobs.class.getName());
 
+    /**
+     * Shared reentrant lock held during each job cycle to prevent race conditions
+     * between background workers (FastCloseJobWorker, SlowWorker) and manual triggers.
+     */
+    public static final java.util.concurrent.locks.ReentrantLock JOB_LOCK = new java.util.concurrent.locks.ReentrantLock();
+
     private SchedulerJobs() {
+    }
+
+    /**
+     * R10: tells open admin pages that new alerts exist (Alerts inbox, dashboard, nav badge).
+     * Called after the transaction commits; a broadcast failure never breaks the job.
+     * Public so the IoT event API (servlet.IotDeviceApiServlet) announces device alerts the same way.
+     */
+    public static void announceAlerts(String alertType) {
+        try {
+            java.util.Map<String, Object> ev = new java.util.HashMap<>();
+            ev.put("alertType", alertType);
+            ev.put("title", util.AlertTitles.title(alertType));
+            ev.put("status", "NEW");
+            ev.put("newAlertCount", new dao.AlertLogDao().countNewAlerts());
+            websocket.RealtimeWebSocketEndpoint.broadcastEvent("ALERT_CREATED", ev);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to broadcast ALERT_CREATED for " + alertType, e);
+        }
     }
 
     // --- Helper DTOs for multi-step jobs ---
@@ -181,14 +205,17 @@ public final class SchedulerJobs {
 
     // 3. ActivateCredentials
     public static void activateCredentials() throws SQLException {
+        Timestamp nowTs = util.ClockService.nowTimestamp();
         String sql = "UPDATE ACCESS_CREDENTIAL "
                 + "SET status = 'ACTIVE' "
                 + "WHERE status = 'PENDING' "
-                + "  AND valid_from <= SYSDATETIME() "
-                + "  AND valid_until > SYSDATETIME()";
+                + "  AND valid_from <= ? "
+                + "  AND valid_until > ?";
 
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, nowTs);
+            ps.setTimestamp(2, nowTs);
             int updated = ps.executeUpdate();
             if (updated > 0) {
                 LOGGER.info("Scheduler ActivateCredentials activated " + updated + " credentials.");
@@ -199,6 +226,7 @@ public final class SchedulerJobs {
     // 4. HandleNoShow
     public static void handleNoShow() throws SQLException {
         int graceMinutes = AppConstants.NOSHOW_GRACE_MINUTES;
+        Timestamp nowTs = util.ClockService.nowTimestamp();
 
         String selectSql = "SELECT b.booking_id, b.booking_code, b.room_id, r.room_number, CONVERT(VARCHAR(10), b.slot_date, 120) AS slot_date_str "
                 + "FROM BOOKING b "
@@ -207,14 +235,14 @@ public final class SchedulerJobs {
                 + "WHERE b.status = 'CONFIRMED' "
                 + "  AND b.actual_checkin_at IS NULL "
                 + "GROUP BY b.booking_id, b.booking_code, b.room_id, r.room_number, b.slot_date "
-                + "HAVING SYSDATETIME() > DATEADD(MINUTE, ?, MIN(bs.start_at))";
+                + "HAVING ? > DATEADD(MINUTE, ?, MIN(bs.start_at))";
 
         String updateBookingSql = "UPDATE BOOKING "
-                + "SET status = 'EXPIRED', expire_reason = 'NO_SHOW', updated_at = SYSDATETIME() "
+                + "SET status = 'EXPIRED', expire_reason = 'NO_SHOW', updated_at = ? "
                 + "WHERE booking_id = ? AND status = 'CONFIRMED'";
 
         String revokeCredentialsSql = "UPDATE ACCESS_CREDENTIAL "
-                + "SET status = 'REVOKED', revoked_at = SYSDATETIME(), revoke_reason = 'NO_SHOW' "
+                + "SET status = 'REVOKED', revoked_at = ?, revoke_reason = 'NO_SHOW' "
                 + "WHERE booking_id = ? AND status IN ('PENDING', 'ACTIVE')";
 
         String insertAlertSql = "INSERT INTO ALERT_LOG (alert_type, severity, status, message, room_id, booking_id, created_at) "
@@ -229,7 +257,8 @@ public final class SchedulerJobs {
             try {
                 List<NoShowBookingInfo> noShowBookings = new ArrayList<>();
                 try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
-                    ps.setInt(1, graceMinutes);
+                    ps.setTimestamp(1, nowTs);
+                    ps.setInt(2, graceMinutes);
                     try (ResultSet rs = ps.executeQuery()) {
                         while (rs.next()) {
                             noShowBookings.add(new NoShowBookingInfo(
@@ -249,10 +278,12 @@ public final class SchedulerJobs {
                          PreparedStatement psAlert = conn.prepareStatement(insertAlertSql)) {
 
                         for (NoShowBookingInfo b : noShowBookings) {
-                            psBooking.setLong(1, b.bookingId);
+                            psBooking.setTimestamp(1, nowTs);
+                            psBooking.setLong(2, b.bookingId);
                             psBooking.executeUpdate();
 
-                            psCred.setLong(1, b.bookingId);
+                            psCred.setTimestamp(1, nowTs);
+                            psCred.setLong(2, b.bookingId);
                             psCred.executeUpdate();
 
                             String alertMsg = "Guest did not check in within " + graceMinutes
@@ -273,6 +304,9 @@ public final class SchedulerJobs {
                 }
 
                 conn.commit();
+                if (!noShowBookings.isEmpty()) {
+                    announceAlerts("BOOKING_NO_SHOW");
+                }
             } catch (SQLException e) {
                 conn.rollback();
                 LOGGER.log(Level.SEVERE, "Scheduler HandleNoShow transaction rolled back", e);
@@ -283,15 +317,16 @@ public final class SchedulerJobs {
 
     // 5. AutoCheckout
     public static void autoCheckout() throws SQLException {
+        Timestamp nowTs = util.ClockService.nowTimestamp();
         String selectSql = "SELECT b.booking_id, b.booking_code, b.room_id "
                 + "FROM BOOKING b "
                 + "JOIN BOOKING_SLOT bs ON b.booking_id = bs.booking_id "
                 + "WHERE b.status = 'CHECKED_IN' "
                 + "GROUP BY b.booking_id, b.booking_code, b.room_id "
-                + "HAVING SYSDATETIME() > MAX(bs.end_at)";
+                + "HAVING ? > MAX(bs.end_at)";
 
         String updateBookingSql = "UPDATE BOOKING "
-                + "SET status = 'CHECKED_OUT', actual_checkout_at = SYSDATETIME(), updated_at = SYSDATETIME() "
+                + "SET status = 'CHECKED_OUT', actual_checkout_at = ?, updated_at = ? "
                 + "WHERE booking_id = ? AND status = 'CHECKED_IN'";
 
         String expireCredSql = "UPDATE ACCESS_CREDENTIAL "
@@ -306,14 +341,16 @@ public final class SchedulerJobs {
             conn.setAutoCommit(false);
             try {
                 List<AutoCheckoutBookingInfo> bookings = new ArrayList<>();
-                try (PreparedStatement ps = conn.prepareStatement(selectSql);
-                     ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        bookings.add(new AutoCheckoutBookingInfo(
-                                rs.getLong("booking_id"),
-                                rs.getString("booking_code"),
-                                rs.getLong("room_id")
-                        ));
+                try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
+                    ps.setTimestamp(1, nowTs);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            bookings.add(new AutoCheckoutBookingInfo(
+                                    rs.getLong("booking_id"),
+                                    rs.getString("booking_code"),
+                                    rs.getLong("room_id")
+                            ));
+                        }
                     }
                 }
 
@@ -323,7 +360,9 @@ public final class SchedulerJobs {
                          PreparedStatement psRoom = conn.prepareStatement(updateRoomSql)) {
 
                         for (AutoCheckoutBookingInfo b : bookings) {
-                            psBooking.setLong(1, b.bookingId);
+                            psBooking.setTimestamp(1, nowTs);
+                            psBooking.setTimestamp(2, nowTs);
+                            psBooking.setLong(3, b.bookingId);
                             psBooking.executeUpdate();
 
                             psCred.setLong(1, b.bookingId);
@@ -349,13 +388,15 @@ public final class SchedulerJobs {
 
     // 6. ExpireCredentials
     public static void expireCredentials() throws SQLException {
+        Timestamp nowTs = util.ClockService.nowTimestamp();
         String sql = "UPDATE ACCESS_CREDENTIAL "
                 + "SET status = 'EXPIRED' "
                 + "WHERE status IN ('ACTIVE', 'PENDING') "
-                + "  AND valid_until < SYSDATETIME()";
+                + "  AND valid_until < ?";
 
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, nowTs);
             int updated = ps.executeUpdate();
             if (updated > 0) {
                 LOGGER.info("Scheduler ExpireCredentials expired " + updated + " credentials.");
@@ -365,12 +406,13 @@ public final class SchedulerJobs {
 
     // 7. ExpireStaleAssignments
     public static void expireStaleAssignments() throws SQLException {
+        Timestamp nowTs = util.ClockService.nowTimestamp();
         String selectSql = "SELECT sa.assignment_id, sa.room_id, r.room_number, u.full_name AS staff_name "
                 + "FROM STAFF_ASSIGNMENT sa "
                 + "JOIN ROOM r ON sa.room_id = r.room_id "
                 + "LEFT JOIN APP_USER u ON sa.staff_id = u.user_id "
                 + "WHERE sa.status = 'ASSIGNED' "
-                + "  AND sa.shift_end < SYSDATETIME()";
+                + "  AND sa.shift_end < ?";
 
         String updateAssignmentSql = "UPDATE STAFF_ASSIGNMENT "
                 + "SET status = 'EXPIRED', updated_at = SYSDATETIME() "
@@ -387,15 +429,17 @@ public final class SchedulerJobs {
             conn.setAutoCommit(false);
             try {
                 List<ExpiredSessionInfo> expiredAssignments = new ArrayList<>();
-                try (PreparedStatement ps = conn.prepareStatement(selectSql);
-                     ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        expiredAssignments.add(new ExpiredSessionInfo(
-                                rs.getLong("assignment_id"),
-                                rs.getLong("room_id"),
-                                rs.getString("room_number"),
-                                rs.getString("staff_name")
-                        ));
+                try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
+                    ps.setTimestamp(1, nowTs);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            expiredAssignments.add(new ExpiredSessionInfo(
+                                    rs.getLong("assignment_id"),
+                                    rs.getLong("room_id"),
+                                    rs.getString("room_number"),
+                                    rs.getString("staff_name")
+                            ));
+                        }
                     }
                 }
 
@@ -421,6 +465,9 @@ public final class SchedulerJobs {
                 }
 
                 conn.commit();
+                if (!expiredAssignments.isEmpty()) {
+                    announceAlerts("CLEANING_SESSION_EXPIRED");
+                }
             } catch (SQLException e) {
                 conn.rollback();
                 LOGGER.log(Level.SEVERE, "Scheduler ExpireStaleAssignments transaction rolled back", e);
@@ -431,17 +478,20 @@ public final class SchedulerJobs {
 
     // 8. PurgeExpiredPinSecrets
     public static void purgeExpiredPinSecrets() throws SQLException {
+        Timestamp nowTs = util.ClockService.nowTimestamp();
         String sql = "UPDATE ACCESS_CREDENTIAL "
                 + "SET pin_ciphertext = NULL, "
                 + "    pin_hmac = NULL, "
-                + "    secret_purged_at = SYSDATETIME() "
+                + "    secret_purged_at = ? "
                 + "WHERE status IN ('EXPIRED', 'REVOKED') "
-                + "  AND valid_until < DATEADD(DAY, -7, SYSDATETIME()) "
+                + "  AND valid_until < DATEADD(DAY, -7, ?) "
                 + "  AND secret_purged_at IS NULL "
                 + "  AND (pin_ciphertext IS NOT NULL OR pin_hmac IS NOT NULL)";
 
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, nowTs);
+            ps.setTimestamp(2, nowTs);
             int updated = ps.executeUpdate();
             if (updated > 0) {
                 LOGGER.info("Scheduler PurgeExpiredPinSecrets purged secrets for " + updated + " expired credentials.");
@@ -530,6 +580,9 @@ public final class SchedulerJobs {
                 }
 
                 conn.commit();
+                if (!offlineDevices.isEmpty()) {
+                    announceAlerts("DEVICE_OFFLINE");
+                }
             } catch (SQLException e) {
                 conn.rollback();
                 LOGGER.log(Level.SEVERE, "Scheduler DeviceOfflineSweep transaction rolled back", e);
@@ -544,9 +597,70 @@ public final class SchedulerJobs {
     private static final java.util.Set<Long> triggeredBuzzerBookings = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
 
     /**
+     * A reminder e-mail collected inside the job lock and sent after it is released.
+     */
+    public static final class PendingMail {
+        final long bookingId;
+        final boolean checkin;
+        final String email;
+        final String guestName;
+        final String bookingCode;
+        final String roomNumber;
+        /** PIN for check-in reminders, raw checkout_at string for check-out reminders. */
+        final String detail;
+
+        PendingMail(long bookingId, boolean checkin, String email, String guestName,
+                    String bookingCode, String roomNumber, String detail) {
+            this.bookingId = bookingId;
+            this.checkin = checkin;
+            this.email = email;
+            this.guestName = guestName;
+            this.bookingCode = bookingCode;
+            this.roomNumber = roomNumber;
+            this.detail = detail;
+        }
+    }
+
+    /**
+     * Sends collected reminders. Call it OUTSIDE the job lock. A failed send is logged,
+     * un-marked so the next cycle retries it, and never aborts the remaining mails.
+     */
+    public static void sendPendingMails(List<PendingMail> mails) {
+        if (mails == null) {
+            return;
+        }
+        for (PendingMail m : mails) {
+            try {
+                if (m.checkin) {
+                    service.EmailService.sendCheckinReminder(m.email, m.guestName, m.bookingCode, m.roomNumber, m.detail);
+                    LOGGER.info("Scheduler sent 30m check-in reminder for booking #" + m.bookingId);
+                } else {
+                    service.EmailService.sendCheckoutReminder(m.email, m.guestName, m.bookingCode, m.roomNumber, m.detail);
+                    LOGGER.info("Scheduler sent 30m checkout reminder for booking #" + m.bookingId);
+                }
+            } catch (Exception mailEx) {
+                (m.checkin ? sentCheckinMailBookings : sentCheckoutMailBookings).remove(m.bookingId);
+                LOGGER.log(Level.WARNING, "Failed to send " + (m.checkin ? "check-in" : "checkout")
+                        + " reminder for booking #" + m.bookingId + ": " + mailEx.getMessage());
+            }
+        }
+    }
+
+    /**
      * Automatically sends reminder email 30 minutes before check-in (including PIN).
+     * Standalone variant: collects and sends in the caller's thread.
      */
     public static void checkUpcomingCheckinEmails() {
+        sendPendingMails(collectCheckinReminders());
+    }
+
+    /**
+     * Collects 30-minute check-in reminders (DB query + PIN decrypt) without sending them.
+     * Each booking is claimed once so repeated cycles never produce duplicate mails.
+     */
+    public static List<PendingMail> collectCheckinReminders() {
+        List<PendingMail> mails = new ArrayList<>();
+        Timestamp nowTs = util.ClockService.nowTimestamp();
         String sql = "SELECT b.booking_id, b.booking_code, b.checkin_at, b.guest_id, "
                 + "u.full_name, u.email, r.room_number, ac.credential_id "
                 + "FROM BOOKING b "
@@ -554,95 +668,117 @@ public final class SchedulerJobs {
                 + "JOIN ROOM r ON b.room_id = r.room_id "
                 + "JOIN ACCESS_CREDENTIAL ac ON b.booking_id = ac.booking_id "
                 + "WHERE b.status = 'CONFIRMED' "
-                + "AND DATEDIFF(MINUTE, SYSDATETIME(), b.checkin_at) BETWEEN 0 AND 30";
+                + "AND DATEDIFF(MINUTE, ?, b.checkin_at) BETWEEN 0 AND 30";
 
         try (Connection conn = DBUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, nowTs);
+            try (ResultSet rs = ps.executeQuery()) {
+                service.CredentialService credService = new service.CredentialService();
+                while (rs.next()) {
+                    long bookingId = rs.getLong("booking_id");
+                    if (sentCheckinMailBookings.add(bookingId)) {
+                        try {
+                            long credId = rs.getLong("credential_id");
+                            long guestId = rs.getLong("guest_id");
+                            String pin = credService.decryptPinForGuest(credId, guestId);
+                            if (pin == null) {
+                                pin = "******";
+                            }
 
-            service.CredentialService credService = new service.CredentialService();
-            while (rs.next()) {
-                long bookingId = rs.getLong("booking_id");
-                if (!sentCheckinMailBookings.contains(bookingId)) {
-                    long credId = rs.getLong("credential_id");
-                    long guestId = rs.getLong("guest_id");
-                    String pin = credService.decryptPinForGuest(credId, guestId);
-                    if (pin == null) {
-                        pin = "******";
+                            mails.add(new PendingMail(bookingId, true,
+                                    rs.getString("email"),
+                                    rs.getString("full_name"),
+                                    rs.getString("booking_code"),
+                                    rs.getString("room_number"),
+                                    pin
+                            ));
+                        } catch (Exception mailEx) {
+                            sentCheckinMailBookings.remove(bookingId);
+                            LOGGER.log(Level.WARNING, "Failed to prepare check-in reminder for booking #" + bookingId + ": " + mailEx.getMessage());
+                        }
                     }
-
-                    service.EmailService.sendCheckinReminder(
-                            rs.getString("email"),
-                            rs.getString("full_name"),
-                            rs.getString("booking_code"),
-                            rs.getString("room_number"),
-                            pin
-                    );
-                    sentCheckinMailBookings.add(bookingId);
-                    LOGGER.info("Scheduler sent 30m check-in reminder for booking #" + bookingId);
                 }
             }
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Error checking upcoming check-in emails", e);
         }
+        return mails;
     }
 
     /**
      * Automatically sends reminder email 30 minutes before check-out.
+     * Standalone variant: collects and sends in the caller's thread.
      */
     public static void checkUpcomingCheckoutEmails() {
+        sendPendingMails(collectCheckoutReminders());
+    }
+
+    /**
+     * Collects 30-minute check-out reminders without sending them (claimed once per booking).
+     */
+    public static List<PendingMail> collectCheckoutReminders() {
+        List<PendingMail> mails = new ArrayList<>();
+        Timestamp nowTs = util.ClockService.nowTimestamp();
         String sql = "SELECT b.booking_id, b.booking_code, b.checkout_at, "
                 + "u.full_name, u.email, r.room_number "
                 + "FROM BOOKING b "
                 + "JOIN APP_USER u ON b.guest_id = u.user_id "
                 + "JOIN ROOM r ON b.room_id = r.room_id "
                 + "WHERE b.status = 'CHECKED_IN' "
-                + "AND DATEDIFF(MINUTE, SYSDATETIME(), b.checkout_at) BETWEEN 0 AND 30";
+                + "AND DATEDIFF(MINUTE, ?, b.checkout_at) BETWEEN 0 AND 30";
 
         try (Connection conn = DBUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, nowTs);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    long bookingId = rs.getLong("booking_id");
+                    if (sentCheckoutMailBookings.add(bookingId)) {
+                        try {
+                            Timestamp coTs = rs.getTimestamp("checkout_at");
+                            String checkoutStr = (coTs != null) ? coTs.toString() : "";
 
-            while (rs.next()) {
-                long bookingId = rs.getLong("booking_id");
-                if (!sentCheckoutMailBookings.contains(bookingId)) {
-                    Timestamp coTs = rs.getTimestamp("checkout_at");
-                    String checkoutStr = (coTs != null) ? coTs.toString() : "";
-
-                    service.EmailService.sendCheckoutReminder(
-                            rs.getString("email"),
-                            rs.getString("full_name"),
-                            rs.getString("booking_code"),
-                            rs.getString("room_number"),
-                            checkoutStr
-                    );
-                    sentCheckoutMailBookings.add(bookingId);
-                    LOGGER.info("Scheduler sent 30m checkout reminder for booking #" + bookingId);
+                            mails.add(new PendingMail(bookingId, false,
+                                    rs.getString("email"),
+                                    rs.getString("full_name"),
+                                    rs.getString("booking_code"),
+                                    rs.getString("room_number"),
+                                    checkoutStr
+                            ));
+                        } catch (Exception mailEx) {
+                            sentCheckoutMailBookings.remove(bookingId);
+                            LOGGER.log(Level.WARNING, "Failed to prepare checkout reminder for booking #" + bookingId + ": " + mailEx.getMessage());
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Error checking upcoming checkout emails", e);
         }
+        return mails;
     }
 
     /**
      * Silent overdue check-out handler (Loud buzzer has been disabled per requirements).
      */
     public static void checkOverdueCheckoutBuzzer() {
+        Timestamp nowTs = util.ClockService.nowTimestamp();
         String sql = "SELECT b.booking_id, b.booking_code, b.room_id "
                 + "FROM BOOKING b "
-                + "WHERE b.status = 'CHECKED_IN' AND SYSDATETIME() > b.checkout_at";
+                + "WHERE b.status = 'CHECKED_IN' AND ? > b.checkout_at";
 
         try (Connection conn = DBUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-
-            while (rs.next()) {
-                long bookingId = rs.getLong("booking_id");
-                if (!triggeredBuzzerBookings.contains(bookingId)) {
-                    // SILENT CHECKOUT: Loud buzzer disabled per requirements
-                    triggeredBuzzerBookings.add(bookingId);
-                    LOGGER.info("Overdue checkout for booking #" + bookingId + " (Silent notice - NO BUZZER)");
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, nowTs);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    long bookingId = rs.getLong("booking_id");
+                    if (!triggeredBuzzerBookings.contains(bookingId)) {
+                        // SILENT CHECKOUT: Loud buzzer disabled per requirements
+                        triggeredBuzzerBookings.add(bookingId);
+                        LOGGER.info("Overdue checkout for booking #" + bookingId + " (Silent notice - NO BUZZER)");
+                    }
                 }
             }
         } catch (Exception e) {

@@ -39,7 +39,7 @@ public class HomeServlet extends HttpServlet {
 
         req.setAttribute("homestayName", HOMESTAY_NAME);
 
-        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate today = util.ClockService.now().toLocalDate();
         java.time.LocalDate maxDate = today.plusDays(util.AppConstants.MAX_ADVANCE_BOOKING_DAYS);
         req.setAttribute("today", today);
         req.setAttribute("maxDate", maxDate);

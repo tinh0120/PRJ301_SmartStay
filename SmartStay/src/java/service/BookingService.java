@@ -82,10 +82,11 @@ public class BookingService {
     public Booking createBooking(long guestId, long roomId, LocalDate date, Collection<String> codes, String ip)
             throws SQLException, ServiceException {
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime clockNow = util.ClockService.now();
+        LocalDateTime realNow = util.ClockService.realNow();
 
         // Step 1: Advisory validation via quoteFor to obtain exact error codes/messages
-        Quote advisoryQuote = roomService.quoteFor(roomId, date, codes, now);
+        Quote advisoryQuote = roomService.quoteFor(roomId, date, codes, clockNow);
 
         try (Connection conn = DBUtil.getConnection()) {
             conn.setAutoCommit(false);
@@ -130,7 +131,7 @@ public class BookingService {
                             slot.getEndTime()
                     );
 
-                    if (!startAt.isAfter(now)) {
+                    if (!startAt.isAfter(clockNow)) {
                         throw new ServiceException("SLOT_UNAVAILABLE", "One or more selected slots are no longer available.");
                     }
 
@@ -156,7 +157,7 @@ public class BookingService {
                 }
 
                 int holdMinutes = AppConstants.BOOKING_HOLD_MINUTES;
-                LocalDateTime paymentDeadline = now.plusMinutes(holdMinutes);
+                LocalDateTime paymentDeadline = realNow.plusMinutes(holdMinutes);
 
                 // Step 6: Insert BOOKING
                 String insertBookingSql = "INSERT INTO BOOKING ("
@@ -178,7 +179,7 @@ public class BookingService {
                     psInsert.setLong(9, quote.getTotal());
                     psInsert.setTimestamp(10, Timestamp.valueOf(paymentDeadline));
                     psInsert.setLong(11, guestId);
-                    psInsert.setTimestamp(12, Timestamp.valueOf(now));
+                    psInsert.setTimestamp(12, Timestamp.valueOf(realNow));
 
                     psInsert.executeUpdate();
                     try (ResultSet gk = psInsert.getGeneratedKeys()) {
@@ -246,8 +247,13 @@ public class BookingService {
 
     /**
      * Cancels an existing booking on behalf of a guest within a single transaction.
+     * 48-hour policy (R3): a paid booking cancelled at or before first slot start - 48 h goes to
+     * REFUND_PENDING (full refund); after that it is cancelled without refund (payment stays PAID).
+     * Unpaid bookings are always cancelled freely. Slots are released in every case.
+     *
+     * @return what happened with the money
      */
-    public void cancelByGuest(long bookingId, long guestId, String reason, String ip)
+    public util.CancellationPolicy.Outcome cancelByGuest(long bookingId, long guestId, String reason, String ip)
             throws SQLException, ServiceException {
 
         try (Connection conn = DBUtil.getConnection()) {
@@ -274,13 +280,13 @@ public class BookingService {
                     }
                 }
 
-                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime clockNow = util.ClockService.now();
                 LocalDateTime checkinAt = (checkinTs != null) ? checkinTs.toLocalDateTime() : null;
 
                 boolean cancellable = (Booking.STATUS_PENDING_PAYMENT.equalsIgnoreCase(currentStatus)
                         || Booking.STATUS_CONFIRMED.equalsIgnoreCase(currentStatus))
                         && checkinAt != null
-                        && now.isBefore(checkinAt);
+                        && clockNow.isBefore(checkinAt);
 
                 if (!cancellable) {
                     throw new ServiceException("NOT_CANCELLABLE", "This booking can no longer be cancelled.");
@@ -297,7 +303,7 @@ public class BookingService {
                         + "WHERE booking_id = ?";
                 try (PreparedStatement psUpdB = conn.prepareStatement(updateBookingSql)) {
                     psUpdB.setString(1, cleanReason);
-                    psUpdB.setTimestamp(2, Timestamp.valueOf(now));
+                    psUpdB.setTimestamp(2, Timestamp.valueOf(clockNow));
                     psUpdB.setLong(3, guestId);
                     psUpdB.setLong(4, bookingId);
                     psUpdB.executeUpdate();
@@ -308,7 +314,7 @@ public class BookingService {
                         + "SET hold_status = 'RELEASED', released_at = ? "
                         + "WHERE booking_id = ? AND hold_status = 'HELD'";
                 try (PreparedStatement psUpdS = conn.prepareStatement(updateSlotsSql)) {
-                    psUpdS.setTimestamp(1, Timestamp.valueOf(now));
+                    psUpdS.setTimestamp(1, Timestamp.valueOf(clockNow));
                     psUpdS.setLong(2, bookingId);
                     psUpdS.executeUpdate();
                 }
@@ -319,29 +325,34 @@ public class BookingService {
                         + "WHERE booking_id = ? AND status IN ('PENDING', 'ACTIVE')";
                 int revokedCreds = 0;
                 try (PreparedStatement psUpdC = conn.prepareStatement(updateCredSql)) {
-                    psUpdC.setTimestamp(1, Timestamp.valueOf(now));
+                    psUpdC.setTimestamp(1, Timestamp.valueOf(clockNow));
                     psUpdC.setLong(2, bookingId);
                     revokedCreds = psUpdC.executeUpdate();
                 }
 
-                // 4. Update latest PAID payment to REFUND_PENDING
-                String updatePaySql = "UPDATE PAYMENT "
-                        + "SET status = 'REFUND_PENDING', resolution_note = 'Auto-flagged on guest cancellation', updated_at = ? "
-                        + "WHERE payment_id = (SELECT TOP 1 payment_id FROM PAYMENT WHERE booking_id = ? AND status = 'PAID' ORDER BY payment_id DESC)";
-                try (PreparedStatement psUpdP = conn.prepareStatement(updatePaySql)) {
-                    psUpdP.setTimestamp(1, Timestamp.valueOf(now));
-                    psUpdP.setLong(2, bookingId);
-                    psUpdP.executeUpdate();
+                // 4. Refund only inside the free-cancellation window (server-side rule, R3)
+                util.CancellationPolicy.Outcome outcome =
+                        util.CancellationPolicy.outcomeFor(currentStatus, checkinAt, clockNow);
+                if (outcome == util.CancellationPolicy.Outcome.FULL_REFUND) {
+                    String updatePaySql = "UPDATE PAYMENT "
+                            + "SET status = 'REFUND_PENDING', resolution_note = 'Auto-flagged on guest cancellation', updated_at = ? "
+                            + "WHERE payment_id = (SELECT TOP 1 payment_id FROM PAYMENT WHERE booking_id = ? AND status = 'PAID' ORDER BY payment_id DESC)";
+                    try (PreparedStatement psUpdP = conn.prepareStatement(updatePaySql)) {
+                        psUpdP.setTimestamp(1, Timestamp.valueOf(clockNow));
+                        psUpdP.setLong(2, bookingId);
+                        psUpdP.executeUpdate();
+                    }
                 }
 
                 // 5. Audit logs
-                LOGGER.info("Booking " + bookingCode + " cancelled by guest");
+                LOGGER.info("Booking " + bookingCode + " cancelled by guest (" + outcome + ")");
 
                 if (revokedCreds > 0) {
                     LOGGER.info("Credentials revoked on booking cancellation for booking " + bookingCode);
                 }
 
                 conn.commit();
+                return outcome;
 
             } catch (SQLException e) {
                 conn.rollback();
@@ -458,7 +469,8 @@ public class BookingService {
             throw new ServiceException("DATE_REQUIRED", "Please select a booking date.");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime clockNow = util.ClockService.now();
+        LocalDateTime realNow = util.ClockService.realNow();
 
         try (Connection conn = DBUtil.getConnection()) {
             conn.setAutoCommit(false);
@@ -515,7 +527,7 @@ public class BookingService {
                             slot.getEndTime()
                     );
 
-                    if (!endAt.isAfter(now)) {
+                    if (!endAt.isAfter(clockNow)) {
                         throw new ServiceException("SLOT_UNAVAILABLE", "One or more selected slots have already ended.");
                     }
 
@@ -541,7 +553,7 @@ public class BookingService {
                 }
 
                 int holdMinutes = AppConstants.BOOKING_HOLD_MINUTES;
-                LocalDateTime paymentDeadline = now.plusMinutes(holdMinutes);
+                LocalDateTime paymentDeadline = realNow.plusMinutes(holdMinutes);
 
                 // 5. Insert BOOKING
                 String insertBookingSql = "INSERT INTO BOOKING ("
@@ -564,7 +576,7 @@ public class BookingService {
                     psInsert.setTimestamp(10, Timestamp.valueOf(paymentDeadline));
                     psInsert.setString(11, cleanNote);
                     psInsert.setLong(12, adminUserId);
-                    psInsert.setTimestamp(13, Timestamp.valueOf(now));
+                    psInsert.setTimestamp(13, Timestamp.valueOf(realNow));
 
                     psInsert.executeUpdate();
                     try (ResultSet gk = psInsert.getGeneratedKeys()) {
@@ -640,7 +652,8 @@ public class BookingService {
             cleanNote = cleanNote.substring(0, 500);
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime clockNow = util.ClockService.now();
+        LocalDateTime realNow = util.ClockService.realNow();
 
         try (Connection conn = DBUtil.getConnection()) {
             conn.setAutoCommit(false);
@@ -738,7 +751,7 @@ public class BookingService {
                                     slot.isCrossesMidnight() ? newDate.plusDays(1) : newDate,
                                     slot.getEndTime()
                             );
-                            if (!endAt.isAfter(now)) {
+                            if (!endAt.isAfter(clockNow)) {
                                 throw new ServiceException("SLOT_UNAVAILABLE", "One or more selected slots have already ended.");
                             }
 
@@ -759,7 +772,7 @@ public class BookingService {
                         }
 
                         int holdMinutes = AppConstants.BOOKING_HOLD_MINUTES;
-                        LocalDateTime newDeadline = now.plusMinutes(holdMinutes);
+                        LocalDateTime newDeadline = realNow.plusMinutes(holdMinutes);
 
                         // 4. Update BOOKING
                         String updBSql = "UPDATE BOOKING SET room_id = ?, slot_date = ?, checkin_at = ?, checkout_at = ?, "
@@ -886,12 +899,13 @@ public class BookingService {
 
                 // 1. Update BOOKING
                 String updBSql = "UPDATE BOOKING SET status = 'CANCELLED', cancel_reason = ?, "
-                        + "cancelled_at = SYSDATETIME(), cancelled_by = ?, updated_at = SYSDATETIME() "
+                        + "cancelled_at = ?, cancelled_by = ?, updated_at = SYSDATETIME() "
                         + "WHERE booking_id = ?";
                 try (PreparedStatement ps = conn.prepareStatement(updBSql)) {
                     ps.setString(1, cleanReason);
-                    ps.setLong(2, adminUserId);
-                    ps.setLong(3, bookingId);
+                    ps.setTimestamp(2, util.ClockService.nowTimestamp());
+                    ps.setLong(3, adminUserId);
+                    ps.setLong(4, bookingId);
                     ps.executeUpdate();
                 }
 
@@ -981,11 +995,11 @@ public class BookingService {
                     throw new IllegalStateException("Booking cannot be checked in because it is in status " + status + ".");
                 }
 
-                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime clockNow = util.ClockService.now();
                 // Check early check-in constraint
                 if (checkinAt != null) {
                     LocalDateTime scheduledCheckin = checkinAt.toLocalDateTime();
-                    if (now.isBefore(scheduledCheckin) && !allowEarly) {
+                    if (clockNow.isBefore(scheduledCheckin) && !allowEarly) {
                         java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
                         throw new IllegalStateException("Too early to check in (Scheduled check-in time: " + scheduledCheckin.format(dtf) + ")");
                     }
@@ -995,16 +1009,18 @@ public class BookingService {
                 int graceMinutes = AppConstants.NOSHOW_GRACE_MINUTES;
                 if (checkinAt != null) {
                     LocalDateTime limit = checkinAt.toLocalDateTime().plusMinutes(graceMinutes);
-                    if (now.isAfter(limit)) {
+                    if (clockNow.isAfter(limit)) {
                         throw new IllegalStateException("Booking has passed the no-show limit.");
                     }
                 }
 
                 // Update booking
-                String updBSql = "UPDATE BOOKING SET status = 'CHECKED_IN', actual_checkin_at = SYSDATETIME(), "
-                        + "updated_at = SYSDATETIME() WHERE booking_id = ?";
+                String updBSql = "UPDATE BOOKING SET status = 'CHECKED_IN', actual_checkin_at = ?, "
+                        + "updated_at = ? WHERE booking_id = ?";
                 try (PreparedStatement ps = conn.prepareStatement(updBSql)) {
-                    ps.setLong(1, bookingId);
+                    ps.setTimestamp(1, util.ClockService.nowTimestamp());
+                    ps.setTimestamp(2, util.ClockService.nowTimestamp());
+                    ps.setLong(3, bookingId);
                     ps.executeUpdate();
                 }
 
@@ -1078,8 +1094,9 @@ public class BookingService {
                         ps.executeUpdate();
                     }
                     // Activate credential immediately so PIN is valid right away
-                    try (PreparedStatement ps = conn.prepareStatement("UPDATE ACCESS_CREDENTIAL SET status = 'ACTIVE', valid_from = SYSDATETIME() WHERE booking_id = ? AND status = 'PENDING'")) {
-                        ps.setLong(1, bookingId);
+                    try (PreparedStatement ps = conn.prepareStatement("UPDATE ACCESS_CREDENTIAL SET status = 'ACTIVE', valid_from = ? WHERE booking_id = ? AND status = 'PENDING'")) {
+                        ps.setTimestamp(1, util.ClockService.nowTimestamp());
+                        ps.setLong(2, bookingId);
                         ps.executeUpdate();
                     }
                     LOGGER.info("Admin #" + adminUserId + " enabled early check-in for booking " + bCode);
@@ -1137,10 +1154,12 @@ public class BookingService {
                 }
 
                 // Update booking
-                String updBSql = "UPDATE BOOKING SET status = 'CHECKED_OUT', actual_checkout_at = SYSDATETIME(), "
-                        + "updated_at = SYSDATETIME() WHERE booking_id = ?";
+                String updBSql = "UPDATE BOOKING SET status = 'CHECKED_OUT', actual_checkout_at = ?, "
+                        + "updated_at = ? WHERE booking_id = ?";
                 try (PreparedStatement ps = conn.prepareStatement(updBSql)) {
-                    ps.setLong(1, bookingId);
+                    ps.setTimestamp(1, util.ClockService.nowTimestamp());
+                    ps.setTimestamp(2, util.ClockService.nowTimestamp());
+                    ps.setLong(3, bookingId);
                     ps.executeUpdate();
                 }
 
@@ -1256,7 +1275,7 @@ public class BookingService {
     public void reinstateNoshow(long adminUserId, long bookingId, boolean refundPayment, String refundNote, String ip)
             throws SQLException {
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime clockNow = util.ClockService.now();
 
         try (Connection conn = DBUtil.getConnection()) {
             conn.setAutoCommit(false);
@@ -1307,7 +1326,7 @@ public class BookingService {
                     throw new IllegalStateException("Cannot reinstate booking because slots have already been released.");
                 }
 
-                if (maxEndAt == null || !maxEndAt.toLocalDateTime().isAfter(now)) {
+                if (maxEndAt == null || !maxEndAt.toLocalDateTime().isAfter(clockNow)) {
                     throw new IllegalStateException("Cannot reinstate booking after the last slot has ended.");
                 }
 
@@ -1331,17 +1350,19 @@ public class BookingService {
                 }
 
                 // Refresh start_at to now for held slots that started in the past, granting fresh grace period
-                String updSlots = "UPDATE BOOKING_SLOT SET start_at = SYSDATETIME() "
-                        + "WHERE booking_id = ? AND hold_status = 'HELD' AND start_at < SYSDATETIME()";
+                String updSlots = "UPDATE BOOKING_SLOT SET start_at = ? "
+                        + "WHERE booking_id = ? AND hold_status = 'HELD' AND start_at < ?";
                 try (PreparedStatement ps = conn.prepareStatement(updSlots)) {
-                    ps.setLong(1, bookingId);
+                    ps.setTimestamp(1, util.ClockService.nowTimestamp());
+                    ps.setLong(2, bookingId);
+                    ps.setTimestamp(3, util.ClockService.nowTimestamp());
                     ps.executeUpdate();
                 }
 
                 // Generate NEW credential PIN valid from now until the last slot ends
                 String deviceId = AppConstants.MAIN_DOOR_DEVICE_ID;
-                LocalDateTime validFrom = now;
-                LocalDateTime validUntil = (maxEndAt != null) ? maxEndAt.toLocalDateTime() : now.plusHours(2);
+                LocalDateTime validFrom = clockNow;
+                LocalDateTime validUntil = (maxEndAt != null) ? maxEndAt.toLocalDateTime() : clockNow.plusHours(2);
                 credentialService.createGuestPin(conn, bookingId, deviceId, validFrom, validUntil);
 
                 // Optional refund

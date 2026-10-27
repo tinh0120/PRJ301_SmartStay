@@ -37,7 +37,7 @@ import javax.servlet.http.Part;
 /**
  * Administrative controller consolidating room listing, form editing, deletion, and slot schedules.
  */
-@WebServlet(name = "RoomAdminServlet", urlPatterns = {"/admin/rooms", "/admin/rooms/edit", "/admin/rooms/delete", "/admin/rooms/slots"})
+@WebServlet(name = "RoomAdminServlet", urlPatterns = {"/admin/rooms", "/admin/rooms/edit", "/admin/rooms/delete", "/admin/rooms/slots", "/admin/rooms/active"})
 @MultipartConfig(
     fileSizeThreshold = 1024 * 1024,      // 1 MB
     maxFileSize = 5 * 1024 * 1024,        // 5 MB
@@ -90,12 +90,52 @@ public class RoomAdminServlet extends HttpServlet {
             saveSlots(req, resp);
             return;
         }
+        if ("/admin/rooms/active".equals(path)) {
+            toggleActive(req, resp);
+            return;
+        }
         resp.sendError(HttpServletResponse.SC_NOT_FOUND);
+    }
+
+    /** R8 "⋯" menu: Activate / Deactivate a room without opening the edit form. */
+    private void toggleActive(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        HttpSession session = req.getSession(false);
+        AuthUser authUser = (session != null) ? (AuthUser) session.getAttribute("authUser") : null;
+        long userId = (authUser != null) ? authUser.getUserId() : 1L;
+        boolean activate = "true".equalsIgnoreCase(req.getParameter("active"));
+        try {
+            long roomId = Long.parseLong(String.valueOf(req.getParameter("roomId")).trim());
+            Room room = RoomService.getRoom(roomId);
+            if (room == null) {
+                Flash.danger(req, "Room not found.");
+            } else {
+                room.setActive(activate);
+                RoomService.updateRoom(room, userId, req.getRemoteAddr());
+                Flash.success(req, "Room " + room.getRoomNumber() + (activate ? " is visible to guests again." : " is hidden from guests."));
+            }
+        } catch (NumberFormatException e) {
+            Flash.danger(req, "Invalid room ID.");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            Flash.danger(req, e.getMessage());
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Failed to change room visibility", e);
+            Flash.danger(req, "Room visibility could not be changed. Please try again.");
+        }
+        resp.sendRedirect(req.getContextPath() + "/admin/rooms");
     }
 
     private void listRooms(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         PageRequest pr = PageRequest.from(req, SORT_KEYS, "number", "ASC");
+        // R8 chips: All / Available / Needs cleaning / Maintenance / Inactive (= hidden from guests)
+        String chip = pr.getFilter("status").toUpperCase();
+        if ("INACTIVE".equals(chip)) {
+            pr.setFilter("status", null);
+            pr.setFilter("active", "0");
+        }
+        req.setAttribute("activeChip", chip);
+        req.setAttribute("chipBaseQs", pr.toQueryString("page", "size", "status", "active"));
         try {
             PageResult<Room> pageResult = RoomService.findAdminPage(pr);
             req.setAttribute("pageResult", pageResult);
@@ -358,7 +398,8 @@ public class RoomAdminServlet extends HttpServlet {
                 roomDao.updateRoomSlotPrices(targetRoomId, slotPrices, userId);
             }
 
-            resp.sendRedirect(req.getContextPath() + "/admin/rooms");
+            // R8: stay on the room so the Slots & Pricing tab is one click away (new rooms included)
+            resp.sendRedirect(req.getContextPath() + "/admin/rooms/edit?roomId=" + targetRoomId);
         } catch (IllegalArgumentException | IllegalStateException e) {
             populateFormAttributes(req, room);
             errors.put("general", e.getMessage());
@@ -504,6 +545,7 @@ public class RoomAdminServlet extends HttpServlet {
             }
 
             List<RoomSlot> slots = RoomService.getRoomSlots(roomId);
+            applyTodayStatus(room, slots);
             req.setAttribute("room", room);
             req.setAttribute("slots", slots);
             req.getRequestDispatcher("/WEB-INF/views/admin/room-slots.jsp").forward(req, resp);
@@ -514,6 +556,24 @@ public class RoomAdminServlet extends HttpServlet {
             LOGGER.log(Level.SEVERE, "Database error loading room slots", e);
             Flash.danger(req, "Failed to load room time slots.");
             resp.sendRedirect(req.getContextPath() + "/admin/rooms");
+        }
+    }
+
+    /** Today's display state per slot with the room-status override (same rule as the room list, R8). */
+    private void applyTodayStatus(Room room, List<RoomSlot> slots) {
+        if (room == null || slots == null || slots.isEmpty()) {
+            return;
+        }
+        Set<Long> held;
+        try {
+            held = roomDao.findHeldSlotIds(java.util.Collections.singletonList(room.getRoomId()),
+                    util.ClockService.now().toLocalDate());
+        } catch (SQLException e) {
+            held = new HashSet<>();
+        }
+        for (RoomSlot s : slots) {
+            s.setTodayStatus(RoomSlot.effectiveForRoom(s.getEffectiveStatus(held), room.getStatus(), room.isActive()));
+            s.computeTodayDifference(room.getStatus(), room.isActive());
         }
     }
 
@@ -547,6 +607,10 @@ public class RoomAdminServlet extends HttpServlet {
         }
 
         String roomStatus = req.getParameter("roomStatus");
+        // R8: OCCUPIED is system-controlled (check-in / check-out): never set by hand, never changed by hand
+        if ("OCCUPIED".equalsIgnoreCase(room.getStatus()) || "OCCUPIED".equalsIgnoreCase(roomStatus)) {
+            roomStatus = null;
+        }
         List<RoomSlot> slots = parseSlotsFromRequest(req, roomId);
         if (slots == null || slots.size() != 4) {
             Flash.danger(req, "Invalid slot submission format.");
@@ -563,12 +627,14 @@ public class RoomAdminServlet extends HttpServlet {
         } catch (IllegalStateException | IllegalArgumentException e) {
             req.setAttribute("errorMessage", e.getMessage());
             req.setAttribute("room", room);
+            applyTodayStatus(room, slots);
             req.setAttribute("slots", slots);
             req.getRequestDispatcher("/WEB-INF/views/admin/room-slots.jsp").forward(req, resp);
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Failed to update room slots", e);
             req.setAttribute("errorMessage", "A database error occurred while updating slots.");
             req.setAttribute("room", room);
+            applyTodayStatus(room, slots);
             req.setAttribute("slots", slots);
             req.getRequestDispatcher("/WEB-INF/views/admin/room-slots.jsp").forward(req, resp);
         }

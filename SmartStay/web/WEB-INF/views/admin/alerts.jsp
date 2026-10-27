@@ -1,296 +1,216 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="e" uri="/WEB-INF/tld/smartstay.tld" %>
 <%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
-<%
-    javax.servlet.http.HttpSession currentSession = request.getSession(false);
-    String roleName = (currentSession != null) ? (String) currentSession.getAttribute("roleName") : null;
-    java.util.Set<?> perms = (currentSession != null && currentSession.getAttribute("permissions") instanceof java.util.Set)
-            ? (java.util.Set<?>) currentSession.getAttribute("permissions") : null;
-    boolean canHandleAlert = (perms != null && perms.contains("ALERT_HANDLE"))
-            || "ADMIN".equalsIgnoreCase(roleName)
-            || "OWNER".equalsIgnoreCase(roleName);
-%>
 <t:layout title="Security alerts" active="alerts">
-    <!-- Boutique Breadcrumb Navigation -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb boutique-breadcrumb m-0">
-            <li class="breadcrumb-item">
-                <a href="${pageContext.request.contextPath}/admin/dashboard" class="boutique-breadcrumb-link">
-                    <i class="bi bi-house-door me-1"></i>Dashboard
-                </a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">Security alerts</li>
-        </ol>
-    </nav>
-
-    <div class="d-flex justify-content-between align-items-baseline mb-3">
+    <%-- R10: alerts as an inbox. Titles come from util.AlertTitles; raw codes only in the detail drawer.
+         Actions are plain POST forms (CSRF) that alerts.js upgrades to in-place fetch updates. --%>
+    <div class="ss-page-header">
         <div>
-            <h1 class="h2 mb-1">Security alerts</h1>
-            <p class="text-muted small mb-0">Hardware telemetry and security incident lifecycle management.</p>
+            <h1 class="ss-page-header__title">Security alerts</h1>
+            <p class="ss-page-header__subtitle">Most severe first. Acknowledge what you are looking at, resolve it when it is fixed.</p>
         </div>
     </div>
+
+    <nav class="ss-tabs ss-bk-tabs" aria-label="Alert status" data-alert-tabs>
+        <a class="ss-tabs__link ${tab == 'open' ? 'ss-tabs__link--active' : ''}" ${tab == 'open' ? 'aria-current="page"' : ''}
+           href="${pageContext.request.contextPath}/admin/alerts?${tabBaseQs}&amp;tab=open">
+            Open <span class="ss-bk-tabs__count" data-tab-count="NEW">${empty statusCounts ? 0 : statusCounts['NEW']}</span>
+        </a>
+        <a class="ss-tabs__link ${tab == 'ack' ? 'ss-tabs__link--active' : ''}" ${tab == 'ack' ? 'aria-current="page"' : ''}
+           href="${pageContext.request.contextPath}/admin/alerts?${tabBaseQs}&amp;tab=ack">
+            Acknowledged <span class="ss-bk-tabs__count" data-tab-count="ACKNOWLEDGED">${empty statusCounts ? 0 : statusCounts['ACKNOWLEDGED']}</span>
+        </a>
+        <a class="ss-tabs__link ${tab == 'resolved' ? 'ss-tabs__link--active' : ''}" ${tab == 'resolved' ? 'aria-current="page"' : ''}
+           href="${pageContext.request.contextPath}/admin/alerts?${tabBaseQs}&amp;tab=resolved">
+            Resolved <span class="ss-bk-tabs__count" data-tab-count="RESOLVED">${empty statusCounts ? 0 : statusCounts['RESOLVED']}</span>
+        </a>
+        <a class="ss-tabs__link ${tab == 'all' ? 'ss-tabs__link--active' : ''}" ${tab == 'all' ? 'aria-current="page"' : ''}
+           href="${pageContext.request.contextPath}/admin/alerts?${tabBaseQs}&amp;tab=all">
+            All <span class="ss-bk-tabs__count" data-tab-count="ALL">${empty statusCounts ? 0 : statusCounts['ALL']}</span>
+        </a>
+    </nav>
 
     <t:if test="${not empty dbError}">
         <div class="alert alert-danger" role="alert">${e:esc(dbError)}</div>
     </t:if>
 
-    <div class="card mb-4 shadow-sm">
-        <div class="card-body">
-            <form action="${pageContext.request.contextPath}/admin/alerts" method="get" class="row g-2 needs-validation" novalidate>
-                <input type="hidden" name="sort" value="${e:esc(result.request.sort)}">
-                <input type="hidden" name="dir" value="${e:esc(result.request.dir)}">
-
-                <div class="col-md-2">
-                    <label for="status" class="form-label small fw-semibold">Status</label>
-                    <select class="form-select form-select-sm" id="status" name="status">
-                        <option value="">All statuses</option>
-                        <option value="NEW" ${'NEW' == result.request.getFilter('status') ? 'selected' : ''}>NEW</option>
-                        <option value="ACKNOWLEDGED" ${'ACKNOWLEDGED' == result.request.getFilter('status') ? 'selected' : ''}>ACKNOWLEDGED</option>
-                        <option value="RESOLVED" ${'RESOLVED' == result.request.getFilter('status') ? 'selected' : ''}>RESOLVED</option>
-                    </select>
-                </div>
-
-                <div class="col-md-2">
-                    <label for="severity" class="form-label small fw-semibold">Severity</label>
-                    <select class="form-select form-select-sm" id="severity" name="severity">
-                        <option value="">All severities</option>
-                        <option value="LOW" ${'LOW' == result.request.getFilter('severity') ? 'selected' : ''}>LOW</option>
-                        <option value="MEDIUM" ${'MEDIUM' == result.request.getFilter('severity') ? 'selected' : ''}>MEDIUM</option>
-                        <option value="HIGH" ${'HIGH' == result.request.getFilter('severity') ? 'selected' : ''}>HIGH</option>
-                        <option value="CRITICAL" ${'CRITICAL' == result.request.getFilter('severity') ? 'selected' : ''}>CRITICAL</option>
-                    </select>
-                </div>
-
-                <div class="col-md-2">
-                    <label for="type" class="form-label small fw-semibold">Alert type</label>
-                    <select class="form-select form-select-sm" id="type" name="type">
-                        <option value="">All types</option>
-                        <t:forEach items="${types}" var="typ">
-                            <option value="${e:esc(typ)}" ${typ == result.request.getFilter('type') ? 'selected' : ''}>
-                                ${e:esc(typ)}
-                            </option>
-                        </t:forEach>
-                    </select>
-                </div>
-
-                <div class="col-md-2">
-                    <label for="from" class="form-label small fw-semibold">From date</label>
-                    <input type="date" class="form-control form-control-sm ${errors['from'] != null ? 'is-invalid' : ''}"
-                           id="from" name="from" data-datepicker value="${e:esc(result.request.getFilter('from'))}">
-                    <t:if test="${not empty errors['from']}">
-                        <div class="invalid-feedback d-block">${e:esc(errors['from'])}</div>
-                    </t:if>
-                </div>
-
-                <div class="col-md-2">
-                    <label for="to" class="form-label small fw-semibold">To date</label>
-                    <input type="date" class="form-control form-control-sm ${errors['to'] != null ? 'is-invalid' : ''}"
-                           id="to" name="to" data-datepicker value="${e:esc(result.request.getFilter('to'))}">
-                    <t:if test="${not empty errors['to']}">
-                        <div class="invalid-feedback d-block">${e:esc(errors['to'])}</div>
-                    </t:if>
-                </div>
-
-                <div class="col-md-2">
-                    <label for="keyword" class="form-label small fw-semibold">Message</label>
-                    <input type="text" class="form-control form-control-sm" id="keyword" name="keyword"
-                           placeholder="Search message..." value="${e:esc(result.request.keyword)}">
-                </div>
-
-                <div class="col-12 d-flex justify-content-end gap-2 mt-3">
-                    <button type="submit" class="btn btn-primary btn-sm px-3">Filter</button>
-                    <a href="${pageContext.request.contextPath}/admin/alerts" class="btn btn-outline-secondary btn-sm px-3">Reset</a>
-                </div>
-            </form>
+    <!-- Toolbar -->
+    <form action="${pageContext.request.contextPath}/admin/alerts" method="get" class="ss-toolbar">
+        <input type="hidden" name="tab" value="${e:esc(tab)}">
+        <t:if test="${not empty pr.getFilter('severity')}"><input type="hidden" name="severity" value="${e:esc(pr.getFilter('severity'))}"></t:if>
+        <div class="ss-toolbar__main">
+            <div class="ss-toolbar__search">
+                <i class="bi bi-search ss-toolbar__search-icon" aria-hidden="true"></i>
+                <label for="keyword" class="visually-hidden">Search alerts</label>
+                <input type="search" class="ss-toolbar__search-input" id="keyword" name="keyword" maxlength="100"
+                       placeholder="Message, device, room or booking code" value="${e:esc(pr.keyword)}">
+            </div>
+            <div class="ss-toolbar__chips" role="group" aria-label="Severity">
+                <a class="ss-chip ${empty pr.getFilter('severity') ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/alerts?${chipBaseQs}">Any severity</a>
+                <a class="ss-chip ${pr.getFilter('severity') == 'CRITICAL' ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/alerts?${chipBaseQs}&amp;severity=CRITICAL">Critical</a>
+                <a class="ss-chip ${pr.getFilter('severity') == 'HIGH' ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/alerts?${chipBaseQs}&amp;severity=HIGH">High</a>
+                <a class="ss-chip ${pr.getFilter('severity') == 'MEDIUM' ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/alerts?${chipBaseQs}&amp;severity=MEDIUM">Medium</a>
+                <a class="ss-chip ${pr.getFilter('severity') == 'LOW' ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/alerts?${chipBaseQs}&amp;severity=LOW">Low</a>
+            </div>
+            <button class="ss-toolbar__more-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#alertMoreFilters"
+                    aria-expanded="${moreFiltersOpen ? 'true' : 'false'}" aria-controls="alertMoreFilters">
+                <i class="bi bi-sliders" aria-hidden="true"></i>More filters
+            </button>
         </div>
-    </div>
-
-    <div class="card shadow-sm mb-4">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th scope="col" class="ps-3 text-nowrap" style="min-width: 155px;">
-                                <t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/alerts" column="time" label="Time"/>
-                            </th>
-                            <th scope="col" style="width: 160px;">
-                                <t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/alerts" column="type" label="Device & Type"/>
-                            </th>
-                            <th scope="col" style="width: 100px;">
-                                <t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/alerts" column="severity" label="Severity"/>
-                            </th>
-                            <th scope="col" style="width: 110px;">
-                                <t:sortLink result="${result}" baseUrl="${pageContext.request.contextPath}/admin/alerts" column="status" label="Status"/>
-                            </th>
-                            <th scope="col">Message</th>
-                            <th scope="col" style="width: 180px;">Lifecycle</th>
-                            <th scope="col" class="pe-3 text-end" style="width: 110px;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <t:if test="${empty result.items}">
-                            <tr><td colspan="7" class="text-center py-4 text-muted">No records found</td></tr>
-                        </t:if>
-                        <t:forEach items="${result.items}" var="row">
-                            <tr>
-                                <td class="ps-3 font-monospace small text-nowrap" style="white-space: nowrap;">${e:datetime(row.createdAt)}</td>
-                                <td>
-                                    <div class="font-monospace fw-semibold small text-espresso">${e:esc(row.alertType)}</div>
-                                    <div class="small text-muted font-monospace" style="font-size: 0.72rem;">
-                                        <i class="bi bi-cpu me-1"></i>${row.deviceId != null ? e:esc(row.deviceId) : '&mdash;'}
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="badge badge-sev-${row.severity == 'CRITICAL' ? 'critical' : (row.severity == 'HIGH' ? 'high' : (row.severity == 'MEDIUM' ? 'medium' : 'low'))}">${e:esc(row.severity)}</span>
-                                </td>
-                                <td>
-                                    <span class="badge ${row.status == 'NEW' ? 'badge-status-danger' : (row.status == 'ACKNOWLEDGED' ? 'badge-status-warning' : 'badge-status-success')}">${e:esc(row.status)}</span>
-                                </td>
-                                <td>
-                                    <div class="text-truncate-2 small text-dark" title="${e:esc(row.message)}" data-bs-toggle="tooltip">
-                                        ${e:esc(row.message)}
-                                    </div>
-                                </td>
-                                <td class="small">
-                                    <t:if test="${row.acknowledgedAt != null}">
-                                        <div class="text-muted text-truncate" title="Ack by ${e:esc(row.acknowledgedByName)} at ${e:esc(row.acknowledgedAtFormatted)}">
-                                            <i class="bi bi-eye me-1"></i>Ack: <span class="fw-semibold">${e:esc(row.acknowledgedByName)}</span>
-                                        </div>
-                                    </t:if>
-                                    <t:if test="${row.resolvedAt != null}">
-                                        <div class="text-success text-truncate" title="Res by ${e:esc(row.resolvedByName)}: ${e:esc(row.resolutionNote)}">
-                                            <i class="bi bi-check-circle me-1"></i>Res: <span class="fw-semibold">${e:esc(row.resolvedByName)}</span>
-                                        </div>
-                                    </t:if>
-                                    <t:if test="${row.acknowledgedAt == null && row.resolvedAt == null}">
-                                        <span class="text-muted">&mdash;</span>
-                                    </t:if>
-                                </td>
-                                <td class="pe-3 text-end text-nowrap">
-                                    <div class="d-inline-flex align-items-center gap-1 justify-content-end">
-                                        <t:if test="${row.status == 'NEW' && canHandleAlert}">
-                                            <form action="${pageContext.request.contextPath}/admin/alerts/action" method="post" class="d-inline m-0">
-                                                <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
-                                                <input type="hidden" name="action" value="acknowledge">
-                                                <input type="hidden" name="alertId" value="${row.alertId}">
-                                                <button type="submit" class="btn btn-warning btn-sm py-1 px-2 fw-semibold" style="font-size: 0.78rem;" title="Acknowledge alert">
-                                                    <i class="bi bi-eye me-1"></i>Acknowledge
-                                                </button>
-                                            </form>
-                                        </t:if>
-
-                                        <t:if test="${row.status == 'ACKNOWLEDGED' && canHandleAlert}">
-                                            <button type="button" class="btn btn-success btn-sm py-1 px-2 fw-semibold" style="font-size: 0.78rem;" data-bs-toggle="modal" data-bs-target="#resolveModal${row.alertId}">
-                                                <i class="bi bi-check2-circle me-1"></i>Resolve
-                                            </button>
-                                            <div class="modal fade text-start" id="resolveModal${row.alertId}" tabindex="-1" aria-labelledby="resolveModalLabel${row.alertId}" aria-hidden="true">
-                                                <div class="modal-dialog modal-dialog-centered">
-                                                    <div class="modal-content">
-                                                        <form action="${pageContext.request.contextPath}/admin/alerts/action" method="post">
-                                                            <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
-                                                            <input type="hidden" name="action" value="resolve">
-                                                            <input type="hidden" name="alertId" value="${row.alertId}">
-                                                            <div class="modal-header">
-                                                                <h5 class="modal-title h6 mb-0" id="resolveModalLabel${row.alertId}">Resolve Alert #${row.alertId}</h5>
-                                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                            </div>
-                                                            <div class="modal-body">
-                                                                <div class="mb-3">
-                                                                    <span class="badge badge-sev-${row.severity == 'CRITICAL' ? 'critical' : (row.severity == 'HIGH' ? 'high' : (row.severity == 'MEDIUM' ? 'medium' : 'low'))} mb-1">${e:esc(row.severity)}</span>
-                                                                    <span class="font-monospace fw-bold text-espresso small ms-1">${e:esc(row.alertType)}</span>
-                                                                    <p class="small text-muted mt-1 mb-0">${e:esc(row.message)}</p>
-                                                                </div>
-                                                                <label for="note${row.alertId}" class="form-label small fw-semibold">Resolution Note <span class="text-muted fw-normal">(optional)</span></label>
-                                                                <textarea class="form-control form-control-sm" id="note${row.alertId}" name="note" rows="3" maxlength="500" placeholder="Describe corrective action taken (optional)..."></textarea>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                                                                <button type="submit" class="btn btn-success btn-sm">Confirm Resolve</button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </t:if>
-
-                                        <t:if test="${row.status == 'RESOLVED'}">
-                                            <span class="badge badge-status-success">Closed</span>
-                                        </t:if>
-
-                                        <!-- Clear text link Details (replaces View only) -->
-                                        <a href="#detailsModal${row.alertId}" data-bs-toggle="modal" class="small text-decoration-none fw-semibold ms-1">Details</a>
-
-                                        <!-- Details Modal -->
-                                        <div class="modal fade text-start" id="detailsModal${row.alertId}" tabindex="-1" aria-labelledby="detailsModalLabel${row.alertId}" aria-hidden="true">
-                                            <div class="modal-dialog modal-dialog-centered">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title h6 mb-0" id="detailsModalLabel${row.alertId}">
-                                                            <i class="bi bi-shield-exclamation me-1" style="color: var(--st-terracotta, #9A5B2E);"></i>Alert #${row.alertId} Details
-                                                        </h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <div class="d-flex align-items-center gap-2 mb-3">
-                                                            <span class="badge badge-sev-${row.severity == 'CRITICAL' ? 'critical' : (row.severity == 'HIGH' ? 'high' : (row.severity == 'MEDIUM' ? 'medium' : 'low'))}">${e:esc(row.severity)}</span>
-                                                            <span class="badge ${row.status == 'NEW' ? 'badge-status-danger' : (row.status == 'ACKNOWLEDGED' ? 'badge-status-warning' : 'badge-status-success')}">${e:esc(row.status)}</span>
-                                                            <span class="font-monospace fw-bold small text-espresso">${e:esc(row.alertType)}</span>
-                                                        </div>
-                                                        <div class="p-3 bg-light rounded-3 mb-3 small">
-                                                            <span class="fw-semibold text-muted text-uppercase" style="font-size: 0.72rem;">Incident Description</span>
-                                                            <div class="mt-1 fw-medium text-dark">${e:esc(row.message)}</div>
-                                                        </div>
-                                                        <table class="table table-sm table-borderless small mb-0">
-                                                            <tr>
-                                                                <td class="text-muted" style="width: 140px;">Timestamp:</td>
-                                                                <td class="font-monospace text-nowrap" style="white-space: nowrap;">${e:datetime(row.createdAt)}</td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td class="text-muted">Device ID:</td>
-                                                                <td class="font-monospace">${row.deviceId != null ? e:esc(row.deviceId) : '&mdash;'}</td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td class="text-muted">Room / Zone:</td>
-                                                                <td><t:if test="${row.roomId != null}">Room #${row.roomId}</t:if><t:if test="${row.roomId == null && row.zoneId != null}">${e:esc(row.zoneId)}</t:if><t:if test="${row.roomId == null && row.zoneId == null}">&mdash;</t:if></td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td class="text-muted">Booking:</td>
-                                                                <td><t:if test="${row.bookingId != null}">Booking #${row.bookingId}</t:if><t:if test="${row.bookingId == null}">&mdash;</t:if></td>
-                                                            </tr>
-                                                            <t:if test="${not empty row.acknowledgedByName}">
-                                                                <tr>
-                                                                    <td class="text-muted">Acknowledged by:</td>
-                                                                    <td>${e:esc(row.acknowledgedByName)} <span class="text-muted font-monospace">(${e:datetime(row.acknowledgedAt)})</span></td>
-                                                                </tr>
-                                                            </t:if>
-                                                            <t:if test="${not empty row.resolvedByName}">
-                                                                <tr>
-                                                                    <td class="text-muted">Resolved by:</td>
-                                                                    <td>${e:esc(row.resolvedByName)} <span class="text-muted font-monospace">(${e:datetime(row.resolvedAt)})</span></td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td class="text-muted">Resolution Note:</td>
-                                                                    <td class="fst-italic text-espresso">${e:esc(row.resolutionNote)}</td>
-                                                                </tr>
-                                                            </t:if>
-                                                        </table>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
+        <div class="collapse ${moreFiltersOpen ? 'show' : ''}" id="alertMoreFilters">
+            <div class="ss-toolbar__collapse ss-bk-more">
+                <div class="ss-bk-more__field">
+                    <label for="type" class="ss-bk-more__label">Type</label>
+                    <select class="form-select form-select-sm" id="type" name="type">
+                        <option value="">Any type</option>
+                        <t:forEach items="${types}" var="typ">
+                            <option value="${e:esc(typ)}" ${typ == pr.getFilter('type') ? 'selected' : ''}>${e:esc(typeTitles[typ])}</option>
                         </t:forEach>
-                    </tbody>
-                </table>
+                    </select>
+                </div>
+                <div class="ss-bk-more__field">
+                    <label for="from" class="ss-bk-more__label">From</label>
+                    <input type="date" class="form-control form-control-sm" id="from" name="from" data-datepicker value="${e:esc(pr.getFilter('from'))}">
+                    <t:if test="${not empty errors['from']}"><div class="invalid-feedback d-block">${e:esc(errors['from'])}</div></t:if>
+                    <t:if test="${not empty errors['range']}"><div class="invalid-feedback d-block">${e:esc(errors['range'])}</div></t:if>
+                </div>
+                <div class="ss-bk-more__field">
+                    <label for="to" class="ss-bk-more__label">To</label>
+                    <input type="date" class="form-control form-control-sm" id="to" name="to" data-datepicker value="${e:esc(pr.getFilter('to'))}">
+                    <t:if test="${not empty errors['to']}"><div class="invalid-feedback d-block">${e:esc(errors['to'])}</div></t:if>
+                </div>
+                <div class="ss-bk-more__actions">
+                    <button type="submit" class="btn btn-primary btn-sm px-3">Apply</button>
+                    <a href="${pageContext.request.contextPath}/admin/alerts?tab=${e:esc(tab)}" class="btn btn-outline-soft btn-sm px-3">Clear all</a>
+                </div>
             </div>
         </div>
+    </form>
+
+    <!-- Inbox -->
+    <div class="ss-inbox" id="alertInbox" data-tab="${e:esc(tab)}" data-page="${result.request.page}"
+         data-can-handle="${canHandle ? 'true' : 'false'}">
+        <ul class="ss-inbox__list" id="alertList" aria-label="Alerts">
+            <t:forEach items="${result.items}" var="a">
+                <li class="ss-inbox__item ss-inbox__item--${a.severityTone} ${a.status == 'RESOLVED' ? 'ss-inbox__item--done' : ''}"
+                    tabindex="0" data-alert-row data-alert-id="${a.alertId}" data-status="${e:esc(a.status)}"
+                    data-d-title="${e:esc(a.title)}"
+                    data-d-type="${e:esc(a.alertType)}"
+                    data-d-severity="${e:esc(a.severityTone)}"
+                    data-d-status="${e:esc(a.status)}"
+                    data-d-message="${e:esc(a.message)}"
+                    data-d-device="${e:esc(empty a.deviceId ? '' : (empty a.deviceName ? a.deviceId : a.deviceName.concat(' (').concat(a.deviceId).concat(')')))}"
+                    data-d-room="${e:esc(a.roomNumber)}"
+                    data-d-booking="${e:esc(a.bookingCode)}"
+                    data-d-created="${empty a.createdAt ? '' : e:datetime(a.createdAt)}"
+                    data-d-ackby="${e:esc(a.acknowledgedByName)}"
+                    data-d-ackat="${empty a.acknowledgedAt ? '' : e:datetime(a.acknowledgedAt)}"
+                    data-d-resby="${e:esc(a.resolvedByName)}"
+                    data-d-resat="${empty a.resolvedAt ? '' : e:datetime(a.resolvedAt)}"
+                    data-d-note="${e:esc(a.resolutionNote)}"
+                    data-d-snapshot="${a.snapshotAvailable ? pageContext.request.contextPath.concat('/').concat(e:esc(a.snapshotPath)) : ''}">
+                    <div class="ss-inbox__body">
+                        <div class="ss-inbox__head">
+                            <span class="ss-inbox__title">${e:esc(a.title)}</span>
+                            <span class="ss-inbox__sev ss-badge ss-badge--${a.severityTone}">${e:esc(a.severityTone)}</span>
+                        </div>
+                        <p class="ss-inbox__msg">${e:esc(a.message)}</p>
+                        <div class="ss-inbox__meta">
+                            <t:if test="${not empty a.source}"><span>${e:esc(a.source)}</span><span aria-hidden="true">&middot;</span></t:if>
+                            <time title="${empty a.createdAt ? '' : e:datetime(a.createdAt)}">${e:timeAgo(a.createdAt)}</time>
+                        </div>
+                    </div>
+                    <div class="ss-inbox__actions" data-alert-actions>
+                        <t:if test="${a.status == 'NEW' && canHandle}">
+                            <form method="post" action="${pageContext.request.contextPath}/admin/alerts/action" data-alert-form>
+                                <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                                <input type="hidden" name="alertId" value="${a.alertId}">
+                                <input type="hidden" name="action" value="acknowledge">
+                                <input type="hidden" name="returnUrl" value="${pageContext.request.contextPath}/admin/alerts?${e:esc(returnQs)}">
+                                <button type="submit" class="btn btn-outline-soft btn-sm">Acknowledge</button>
+                            </form>
+                        </t:if>
+                        <t:if test="${a.status == 'ACKNOWLEDGED' && canHandle}">
+                            <details class="ss-inbox__resolve">
+                                <summary class="btn btn-primary btn-sm">Resolve</summary>
+                                <form method="post" action="${pageContext.request.contextPath}/admin/alerts/action" class="ss-inbox__pop" data-alert-form>
+                                    <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                                    <input type="hidden" name="alertId" value="${a.alertId}">
+                                    <input type="hidden" name="action" value="resolve">
+                                    <input type="hidden" name="returnUrl" value="${pageContext.request.contextPath}/admin/alerts?${e:esc(returnQs)}">
+                                    <label for="note-${a.alertId}" class="ss-inbox__pop-label">Note (optional)</label>
+                                    <textarea class="form-control form-control-sm" id="note-${a.alertId}" name="note" rows="2" maxlength="500"
+                                              placeholder="What was done?"></textarea>
+                                    <button type="submit" class="btn btn-primary btn-sm">Mark resolved</button>
+                                </form>
+                            </details>
+                        </t:if>
+                        <t:if test="${a.status == 'ACKNOWLEDGED' && !canHandle}">
+                            <span class="ss-inbox__done">Acknowledged<t:if test="${not empty a.acknowledgedByName}"> by ${e:esc(a.acknowledgedByName)}</t:if></span>
+                        </t:if>
+                        <t:if test="${a.status == 'RESOLVED'}">
+                            <span class="ss-inbox__done">Resolved<t:if test="${not empty a.resolvedByName}"> by ${e:esc(a.resolvedByName)}</t:if> &middot;
+                                <time title="${empty a.resolvedAt ? '' : e:datetime(a.resolvedAt)}">${e:timeAgo(a.resolvedAt)}</time></span>
+                        </t:if>
+                    </div>
+                </li>
+            </t:forEach>
+        </ul>
+
+        <t:if test="${empty result.items && empty dbError}">
+            <div class="ss-empty" id="alertEmpty">
+                <i class="bi bi-shield-check ss-empty__icon" aria-hidden="true"></i>
+                <p class="ss-empty__title">${tab == 'open' ? 'No open alerts' : (tab == 'ack' ? 'Nothing waiting to be resolved' : (tab == 'resolved' ? 'No resolved alerts yet' : 'No alerts found'))}</p>
+                <p class="ss-empty__desc">${empty pr.keyword && empty pr.getFilter('severity') && empty pr.getFilter('type') ? 'All clear. New alerts appear here automatically.' : 'Nothing matches these filters.'}</p>
+            </div>
+        </t:if>
     </div>
 
     <t:pagination result="${result}" baseUrl="${pageContext.request.contextPath}/admin/alerts"/>
+
+    <!-- Detail drawer (raw type code and the full timeline live here) -->
+    <aside class="ss-drawer" id="alertDrawer" role="dialog" aria-modal="false" aria-labelledby="alertDrawerTitle" aria-hidden="true">
+        <div class="ss-drawer__header">
+            <h2 class="ss-drawer__title" id="alertDrawerTitle" tabindex="-1">Alert detail</h2>
+            <button type="button" class="ss-drawer__close" data-alert-close aria-label="Close detail"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+        </div>
+        <div class="ss-drawer__body">
+            <p class="ss-inbox__drawer-msg" id="alertDrawerMsg"></p>
+            <figure class="ss-inbox__snap" id="alertDrawerSnap" hidden>
+                <a id="alertDrawerSnapLink" href="#" target="_blank" rel="noopener">
+                    <img id="alertDrawerSnapImg" src="" alt="Camera snapshot taken when the alert was raised" width="640" height="480" loading="lazy">
+                </a>
+                <figcaption class="ss-inbox__snap-caption">Main entrance camera</figcaption>
+            </figure>
+            <dl class="ss-act-dl" id="alertDrawerList"></dl>
+            <h3 class="ss-inbox__tl-title">Timeline</h3>
+            <ol class="ss-inbox__tl" id="alertDrawerTimeline"></ol>
+        </div>
+    </aside>
+
+    <t:if test="${canHandle}">
+        <%-- Resolve control used by alerts.js after an in-place Acknowledge (__ID__ = alert id) --%>
+        <template id="alertResolveTpl">
+            <details class="ss-inbox__resolve">
+                <summary class="btn btn-primary btn-sm">Resolve</summary>
+                <form method="post" action="${pageContext.request.contextPath}/admin/alerts/action" class="ss-inbox__pop" data-alert-form>
+                    <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                    <input type="hidden" name="alertId" value="__ID__">
+                    <input type="hidden" name="action" value="resolve">
+                    <input type="hidden" name="returnUrl" value="${pageContext.request.contextPath}/admin/alerts?${e:esc(returnQs)}">
+                    <label for="note-__ID__" class="ss-inbox__pop-label">Note (optional)</label>
+                    <textarea class="form-control form-control-sm" id="note-__ID__" name="note" rows="2" maxlength="500"
+                              placeholder="What was done?"></textarea>
+                    <button type="submit" class="btn btn-primary btn-sm">Mark resolved</button>
+                </form>
+            </details>
+        </template>
+    </t:if>
+
+    <script src="${pageContext.request.contextPath}/assets/js/alerts.js"></script>
 </t:layout>

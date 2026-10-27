@@ -34,7 +34,39 @@ public class AlertLogDao {
         SORT_WHITELIST = Collections.unmodifiableMap(map);
     }
 
+    /** R10: joins that give each alert a human source (device name, room, booking). */
+    private static final String SOURCE_JOINS =
+            "LEFT JOIN DEVICE dv ON a.device_id = dv.device_id "
+            + "LEFT JOIN ROOM r ON a.room_id = r.room_id "
+            + "LEFT JOIN BOOKING b ON a.booking_id = b.booking_id ";
+
     public AlertLogDao() {
+    }
+
+    /**
+     * R10 tab counts (NEW / ACKNOWLEDGED / RESOLVED / ALL), independent of search and filters.
+     */
+    public Map<String, Integer> getStatusCounts() throws SQLException {
+        Map<String, Integer> m = new HashMap<>();
+        m.put("NEW", 0);
+        m.put("ACKNOWLEDGED", 0);
+        m.put("RESOLVED", 0);
+        int all = 0;
+        String sql = "SELECT status, COUNT(*) AS cnt FROM ALERT_LOG GROUP BY status";
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                String st = rs.getString("status");
+                int cnt = rs.getInt("cnt");
+                if (st != null) {
+                    m.put(st.toUpperCase(), cnt);
+                }
+                all += cnt;
+            }
+        }
+        m.put("ALL", all);
+        return m;
     }
 
     /**
@@ -62,10 +94,12 @@ public class AlertLogDao {
                    + "a.resolved_by, u2.full_name AS res_user_name, a.resolved_at, "
                    + "CONVERT(varchar, a.resolved_at, 120) AS res_at_str, "
                    + "a.resolution_note, a.created_at, "
-                   + "CONVERT(varchar, a.created_at, 120) AS created_at_str "
+                   + "CONVERT(varchar, a.created_at, 120) AS created_at_str, "
+                   + "dv.device_name, r.room_number, b.booking_code "
                    + "FROM ALERT_LOG a "
                    + "LEFT JOIN APP_USER u1 ON a.acknowledged_by = u1.user_id "
                    + "LEFT JOIN APP_USER u2 ON a.resolved_by = u2.user_id "
+                   + SOURCE_JOINS
                    + "WHERE a.alert_id = ?";
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -129,11 +163,16 @@ public class AlertLogDao {
 
         String keyword = pr.getKeyword();
         if (keyword != null && !keyword.trim().isEmpty()) {
-            where.append("AND a.message LIKE ? ");
-            params.add(SqlUtil.escapeLike(keyword.trim()));
+            // R10: search message, type, device, room or booking
+            where.append("AND (a.message LIKE ? OR a.alert_type LIKE ? OR a.device_id LIKE ? OR dv.device_name LIKE ? "
+                    + "OR r.room_number LIKE ? OR b.booking_code LIKE ?) ");
+            String kw = SqlUtil.escapeLike(keyword.trim());
+            for (int i = 0; i < 6; i++) {
+                params.add(kw);
+            }
         }
 
-        String countSql = "SELECT COUNT(*) FROM ALERT_LOG a " + where.toString();
+        String countSql = "SELECT COUNT(*) FROM ALERT_LOG a " + SOURCE_JOINS + where.toString();
         int total = 0;
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(countSql)) {
@@ -159,6 +198,11 @@ public class AlertLogDao {
             sortColumn = "a.created_at";
         }
         String dir = "ASC".equalsIgnoreCase(pr.getDir()) ? "ASC" : "DESC";
+        String orderBy = sortColumn + " " + dir + ", a.alert_id DESC ";
+        if ("smart".equals(sortKey)) {
+            // R10 default: most severe first, then newest
+            orderBy = SORT_WHITELIST.get("severity") + " DESC, a.created_at DESC, a.alert_id DESC ";
+        }
 
         StringBuilder dataSql = new StringBuilder();
         dataSql.append("SELECT a.alert_id, a.alert_type, a.severity, a.status, a.message, ")
@@ -169,13 +213,14 @@ public class AlertLogDao {
                .append("a.resolved_by, u2.full_name AS res_user_name, a.resolved_at, ")
                .append("CONVERT(varchar, a.resolved_at, 120) AS res_at_str, ")
                .append("a.resolution_note, a.created_at, ")
-               .append("CONVERT(varchar, a.created_at, 120) AS created_at_str ")
+               .append("CONVERT(varchar, a.created_at, 120) AS created_at_str, ")
+               .append("dv.device_name, r.room_number, b.booking_code ")
                .append("FROM ALERT_LOG a ")
                .append("LEFT JOIN APP_USER u1 ON a.acknowledged_by = u1.user_id ")
                .append("LEFT JOIN APP_USER u2 ON a.resolved_by = u2.user_id ")
+               .append(SOURCE_JOINS)
                .append(where.toString())
-               .append("ORDER BY ").append(sortColumn).append(" ").append(dir)
-               .append(", a.alert_id DESC ")
+               .append("ORDER BY ").append(orderBy)
                .append("OFFSET ? ROWS FETCH NEXT ? ROWS ONLY");
 
         List<AlertEntry> list = new ArrayList<>();
@@ -284,6 +329,9 @@ public class AlertLogDao {
         a.setResolutionNote(rs.getString("resolution_note"));
         a.setCreatedAt(rs.getTimestamp("created_at"));
         a.setCreatedAtFormatted(rs.getString("created_at_str"));
+        a.setDeviceName(rs.getString("device_name"));
+        a.setRoomNumber(rs.getString("room_number"));
+        a.setBookingCode(rs.getString("booking_code"));
         return a;
     }
 }

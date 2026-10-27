@@ -1,5 +1,7 @@
 package job;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -12,6 +14,8 @@ import java.util.logging.Logger;
  * - Purging expired PIN secrets & sweep offline IoT devices
  * - 30-minute upcoming check-in and check-out emails
  * - Silent check-out reminder sweep (replaces loud buzzer)
+ *
+ * Reminder e-mails are collected while holding the job lock and sent after it is released.
  */
 public class SlowWorker implements Runnable {
 
@@ -19,6 +23,22 @@ public class SlowWorker implements Runnable {
 
     @Override
     public void run() {
+        final List<SchedulerJobs.PendingMail> mails = new ArrayList<>();
+        JobCoordinator.runExclusive(new Runnable() {
+            @Override
+            public void run() {
+                mails.addAll(runJobsCollectingMails());
+            }
+        });
+        SchedulerJobs.sendPendingMails(mails);
+    }
+
+    /**
+     * One cycle of the slow jobs. The caller must hold the job lock (see JobCoordinator)
+     * and must send the returned mails with SchedulerJobs.sendPendingMails AFTER unlocking.
+     */
+    public static List<SchedulerJobs.PendingMail> runJobsCollectingMails() {
+        List<SchedulerJobs.PendingMail> mails = new ArrayList<>();
         LOGGER.fine("SlowWorker periodic sweep started.");
 
         // 1. AutoCheckout
@@ -63,16 +83,16 @@ public class SlowWorker implements Runnable {
             LOGGER.log(Level.SEVERE, "SlowWorker DeviceOfflineSweep failed", e);
         }
 
-        // 7. Check upcoming check-in emails (30 min reminder)
+        // 7. Collect upcoming check-in emails (30 min reminder)
         try {
-            SchedulerJobs.checkUpcomingCheckinEmails();
+            mails.addAll(SchedulerJobs.collectCheckinReminders());
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "SlowWorker CheckUpcomingCheckinEmails failed", e);
         }
 
-        // 8. Check upcoming check-out emails (30 min reminder)
+        // 8. Collect upcoming check-out emails (30 min reminder)
         try {
-            SchedulerJobs.checkUpcomingCheckoutEmails();
+            mails.addAll(SchedulerJobs.collectCheckoutReminders());
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "SlowWorker CheckUpcomingCheckoutEmails failed", e);
         }
@@ -85,5 +105,6 @@ public class SlowWorker implements Runnable {
         }
 
         LOGGER.fine("SlowWorker periodic sweep finished.");
+        return mails;
     }
 }

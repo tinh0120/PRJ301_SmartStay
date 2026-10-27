@@ -57,6 +57,9 @@ public class GuestBookingServlet extends HttpServlet {
             "PENDING_PAYMENT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "EXPIRED"
     );
 
+    /** My bookings tabs (see BookingDao.findPageByGuest "view" filter). */
+    private static final List<String> GUEST_VIEWS = Arrays.asList("upcoming", "past", "cancelled", "all");
+
     public static final String DISCLAIMER_TEXT = "The system confirms main-door access only. It cannot verify which room you enter.";
 
     private final BookingDao bookingDao = new BookingDao();
@@ -202,6 +205,22 @@ public class GuestBookingServlet extends HttpServlet {
             pr.setFilter("status", null);
         }
 
+        // Round 3, item 4: tabs Upcoming / Past stays / Cancelled / All instead of the filter form.
+        // Upcoming is the default and lists the nearest stay first.
+        String view = pr.getFilter("view");
+        if (!GUEST_VIEWS.contains(view)) {
+            view = pr.getFilter("status").isEmpty() ? "upcoming" : "all";
+            pr.setFilter("view", view);
+        }
+        if ("upcoming".equals(view) && req.getParameter("sort") == null) {
+            pr.setDir("ASC");
+        }
+        try {
+            req.setAttribute("viewCounts", bookingDao.countGuestViews(guestId));
+        } catch (SQLException e) {
+            LOGGER.log(Level.WARNING, "Failed to count guest booking tabs for guest " + guestId, e);
+        }
+
         PageResult<Booking> pageResult;
         try {
             pageResult = bookingDao.findPageByGuest(pr, guestId);
@@ -345,8 +364,15 @@ public class GuestBookingServlet extends HttpServlet {
         String reason = req.getParameter("reason");
 
         try {
-            bookingService.cancelByGuest(bookingId, guestId, reason, req.getRemoteAddr());
-            Flash.success(req, "Booking cancelled successfully.");
+            util.CancellationPolicy.Outcome outcome = bookingService.cancelByGuest(bookingId, guestId, reason, req.getRemoteAddr());
+            if (outcome == util.CancellationPolicy.Outcome.FULL_REFUND) {
+                Flash.success(req, "Booking cancelled. Your payment will be refunded in full within 1 to 3 business days.");
+            } else if (outcome == util.CancellationPolicy.Outcome.NO_REFUND) {
+                Flash.success(req, "Booking cancelled. It was less than " + util.AppConstants.CANCEL_FREE_HOURS
+                        + " hours before check-in, so no refund is due.");
+            } else {
+                Flash.success(req, "Booking cancelled. Nothing was charged.");
+            }
             resp.sendRedirect(req.getContextPath() + "/guest/bookings/detail?id=" + bookingId);
         } catch (ServiceException pe) {
             Flash.error(req, pe.getMessage());
@@ -391,7 +417,7 @@ public class GuestBookingServlet extends HttpServlet {
         List<String> slotCodes = BookingService.parseSlotCodes(req);
 
         try {
-            Quote quote = catalogService.quoteFor(roomId, date, slotCodes, LocalDateTime.now());
+            Quote quote = catalogService.quoteFor(roomId, date, slotCodes, util.ClockService.now());
 
             Map<String, Object> respMap = new LinkedHashMap<>();
             respMap.put("success", true);

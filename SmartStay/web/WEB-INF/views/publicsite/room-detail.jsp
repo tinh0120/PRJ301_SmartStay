@@ -48,8 +48,6 @@
             background: transparent;
         }
         .room-info-tab-content {
-            max-height: 380px;
-            overflow-y: auto;
             padding-right: 4px;
         }
         .room-info-tab-content::-webkit-scrollbar {
@@ -156,11 +154,6 @@
                 border-top-left-radius: 16px;
                 border-top-right-radius: 16px;
                 box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.22);
-                animation: mobileBarSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-            }
-            @keyframes mobileBarSlideUp {
-                from { transform: translateY(100%); }
-                to { transform: translateY(0); }
             }
             .btn-mobile-book-now {
                 background: linear-gradient(135deg, #9A5B2E 0%, #7E451F 100%) !important;
@@ -390,10 +383,13 @@
 
     <!-- Room Detail Header & Meta Pills -->
     <div class="room-detail-header mb-4">
-        <h1 class="room-detail-title mb-2">${e:esc(card.room.displayTitle)}</h1>
+        <h1 class="room-detail-title ss-serif mb-2">${e:esc(card.room.displayTitle)}</h1>
         <div class="d-flex align-items-center gap-2 flex-wrap">
             <span class="room-meta-pill"><i class="bi bi-door-closed me-1 text-caramel"></i>${e:esc(card.room.roomNumber)}</span>
-            <span class="room-meta-pill"><i class="bi bi-layers me-1 text-caramel"></i>Floor ${card.room.floorNumber}</span>
+            <%-- V4: the location pill already names the floor ("Floor 1, East Wing") --%>
+            <t:if test="${empty card.room.locationDescription}">
+                <span class="room-meta-pill"><i class="bi bi-layers me-1 text-caramel"></i>Floor ${card.room.floorNumber}</span>
+            </t:if>
             <span class="room-meta-pill"><i class="bi bi-people me-1 text-caramel"></i>${card.room.capacity} Guests</span>
             <t:if test="${not empty card.room.locationDescription}">
                 <span class="room-meta-pill"><i class="bi bi-geo me-1 text-caramel"></i>${e:esc(card.room.locationDescription)}</span>
@@ -416,7 +412,7 @@
                             <img id="galleryMainImg"
                                  src="${pageContext.request.contextPath}/${card.room.resolvedImageUrl}"
                                  alt="${e:esc(card.room.displayTitle)} main image"
-                                 class="gallery-main-img"
+                                 class="gallery-main-img" width="768" height="576"
                                  onerror="this.onerror=null;this.src='${pageContext.request.contextPath}/assets/images/branding/hero_img2.jpg';">
                             <button type="button" class="gallery-zoom-badge" id="galleryZoomBtn" aria-label="Enlarge photo" title="Click to enlarge photo">
                                 <i class="bi bi-arrows-fullscreen"></i>
@@ -438,7 +434,7 @@
                                         aria-pressed="${img.main ? 'true' : 'false'}">
                                     <img src="${pageContext.request.contextPath}/${img.url}"
                                          alt="${e:esc(img.alt)}"
-                                         class="gallery-thumb-img"
+                                         class="gallery-thumb-img" width="768" height="576"
                                          onerror="this.onerror=null; this.src='${pageContext.request.contextPath}/assets/images/branding/hero_img2.jpg';">
                                 </button>
                             </t:forEach>
@@ -485,7 +481,7 @@
                                     <t:forEach items="${e:amenities(card.room.amenities)}" var="am">
                                         <div class="amenity-item" role="listitem">
                                             <t:if test="${am.hasIcon}">
-                                                <img src="${pageContext.request.contextPath}/assets/images/amenities/${am.iconFile}" alt="" class="amenity-icon">
+                                                <img src="${pageContext.request.contextPath}/assets/images/amenities/sm/${am.iconFile}" alt="" class="amenity-icon" width="22" height="22">
                                             </t:if>
                                             <span>${e:esc(am.label)}</span>
                                         </div>
@@ -545,7 +541,7 @@
                                     </div>
                                     <div class="text-center mt-2 pt-2 border-top">
                                         <button type="button" id="btnToggleReviews" data-count="${reviewCount}" class="btn btn-link btn-sm text-decoration-none fw-semibold p-0" style="color: var(--color-caramel, #8C532B);">
-                                            View all (${reviewCount}) &rarr;
+                                            View all ${reviewCount} reviews
                                         </button>
                                     </div>
                                 </t:if>
@@ -597,13 +593,17 @@
                  data-guest="${loggedInGuest ? 'true' : 'false'}"
                  data-rate-two="${rates.twoSlots}"
                  data-rate-three="${rates.threeSlots}"
-                 data-rate-four="${rates.fourSlots}">
+                 data-rate-four="${rates.fourSlots}"
+                 data-clock-now="${e:esc(clockNowIso)}"
+                 data-cancel-free-hours="${cancelFreeHours}"
+                 data-preselect-date="${e:esc(preselectDate)}"
+                 data-preselect-slots="${e:esc(preselectSlots)}">
 
                 <!-- Header Row with Title & Status Legend -->
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
                     <div>
-                        <h2 class="h4 fw-bold mb-0 text-espresso">Booking Calendar</h2>
-                        <p class="text-muted small mb-0">Select your preferred time slots for the next 7 days</p>
+                        <h2 class="h4 mb-0 text-espresso">Choose your slots</h2>
+                        <p class="text-muted small mb-0">Pick one or more slots on the same day, for the next 7 days.</p>
                     </div>
                     <!-- Status Legend -->
                     <div class="matrix-legend">
@@ -611,9 +611,9 @@
                             <span class="legend-box legend-box-available"></span> Available
                         </span>
                         <span class="matrix-legend-item">
-                            <img src="${pageContext.request.contextPath}/assets/images/branding/tini-smartstay-favicon-round.png"
+                            <img src="${pageContext.request.contextPath}/assets/images/branding/tini-smartstay-favicon-96.png"
                                  alt="" aria-hidden="true"
-                                 class="legend-favicon-img" />
+                                 class="legend-favicon-img" width="16" height="16" />
                             Booked / Expired
                         </span>
                         <span class="matrix-legend-item">
@@ -622,50 +622,48 @@
                     </div>
                 </div>
 
-                <!-- Requirement 4: Discount Rule Info Banner -->
-                <div class="matrix-discount-info-banner d-flex align-items-center gap-2 p-2 px-3 rounded-pill mb-3 shadow-2xs">
-                    <i class="bi bi-tag-fill text-caramel"></i>
-                    <span class="small text-cocoa">
-                        <strong>Consecutive discount:</strong> 2 slots: ${rates.twoSlots}% off &middot; 3 slots: ${rates.threeSlots}% off &middot; Full day (4 slots): ${rates.fourSlots}% off
-                    </span>
+                <!-- V2: combo ladder. booking-bar.js lights up the step reached by the current selection. -->
+                <div class="ss-combo-ladder ss-combo-ladder--detail" data-combo-ladder role="group" aria-label="Combo discounts for slots next to each other">
+                    <span class="ss-combo-ladder__label">Book back to back:</span>
+                    <span class="ss-combo-ladder__tier" data-combo-tier="2">2 slots <span class="ss-combo-ladder__discount">-${rates.twoSlots}%</span></span>
+                    <span class="ss-combo-ladder__tier" data-combo-tier="3">3 slots <span class="ss-combo-ladder__discount">-${rates.threeSlots}%</span></span>
+                    <span class="ss-combo-ladder__tier" data-combo-tier="4">Full day <span class="ss-combo-ladder__discount">-${rates.fourSlots}%</span></span>
                 </div>
 
-                <!-- 7-Day Block Navigation Bar -->
-                <div class="card border-0 rounded-4 p-2 px-3 mb-3 d-flex flex-row align-items-center justify-content-between flex-wrap gap-2 shadow-sm"
-                     style="background: #FFFDF9; border: 1.5px solid #D9B991 !important;">
-                    <div class="d-flex align-items-center gap-2">
-                        <!-- Prev 7 Days Button -->
-                        <a href="${pageContext.request.contextPath}/rooms/detail?id=${card.room.roomId}&date=${date}&weekStart=${prevWeekStart}"
-                           class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold ${!canGoPrev ? 'disabled opacity-50' : ''}"
-                           title="Previous 7 Days">
-                            <i class="bi bi-chevron-left me-1"></i> &lt; Prev 7 Days
+                <!-- 7-day navigation (R5): ONE control "‹ 25 – 31 Oct ›" + calendar icon (Flatpickr) -->
+                <div class="ss-week-nav mb-3">
+                    <t:if test="${canGoPrev}">
+                        <a href="${pageContext.request.contextPath}/rooms/detail?id=${card.room.roomId}&date=${prevWeekStart}&weekStart=${prevWeekStart}"
+                           class="ss-week-nav__arrow" aria-label="Previous 7 days">
+                            <i class="bi bi-chevron-left" aria-hidden="true"></i>
                         </a>
-
-                        <!-- Current 7-Day Display -->
-                        <div class="px-2 py-1 bg-white rounded-pill border fw-bold text-espresso small shadow-2xs d-flex align-items-center gap-1">
-                            <i class="bi bi-calendar-week text-caramel"></i>
-                            <span>Week: ${startDateFormatted} &ndash; ${endDateFormatted}</span>
-                        </div>
-
-                        <!-- Next 7 Days Button -->
-                        <a href="${pageContext.request.contextPath}/rooms/detail?id=${card.room.roomId}&date=${date}&weekStart=${nextWeekStart}"
-                           class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold ${!canGoNext ? 'disabled opacity-50' : ''}"
-                           title="Next 7 Days">
-                            Next 7 Days &gt; <i class="bi bi-chevron-right ms-1"></i>
+                    </t:if>
+                    <t:if test="${!canGoPrev}">
+                        <span class="ss-week-nav__arrow ss-week-nav__arrow--off" aria-hidden="true">
+                            <i class="bi bi-chevron-left"></i>
+                        </span>
+                    </t:if>
+                    <span class="ss-week-nav__label" aria-live="polite">${e:esc(weekRangeLabel)}</span>
+                    <t:if test="${canGoNext}">
+                        <a href="${pageContext.request.contextPath}/rooms/detail?id=${card.room.roomId}&date=${nextWeekStart}&weekStart=${nextWeekStart}"
+                           class="ss-week-nav__arrow" aria-label="Next 7 days">
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
                         </a>
-                    </div>
-
-                    <!-- Date Picker Jump (Weekly Block Support) -->
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="text-muted small fw-semibold text-nowrap"><i class="bi bi-calendar3 text-caramel me-1"></i>Jump to week:</span>
-                        <div class="position-relative" style="max-width: 145px;">
-                            <input type="text" id="detailJumpWeekInput" class="form-control form-control-sm rounded-pill agoda-input fw-bold text-center"
-                                   value="${weekStart}" readonly style="cursor: pointer; background: #FFFDF9; padding-right: 28px;"
-                                   data-toggle="weekly-calendar" data-target-input="#detailJumpWeekInput"
-                                   data-onselect="window.location.href='${pageContext.request.contextPath}/rooms/detail?id=${card.room.roomId}&date=' + weekStartStr + '&weekStart=' + weekStartStr;">
-                            <i class="bi bi-calendar-week position-absolute end-0 top-50 translate-middle-y me-2 text-caramel pe-none" style="font-size: 0.82rem;"></i>
-                        </div>
-                    </div>
+                    </t:if>
+                    <t:if test="${!canGoNext}">
+                        <span class="ss-week-nav__arrow ss-week-nav__arrow--off" aria-hidden="true">
+                            <i class="bi bi-chevron-right"></i>
+                        </span>
+                    </t:if>
+                    <span class="ss-week-nav__pick">
+                        <button type="button" class="ss-week-nav__pick-btn" aria-label="Pick a date"
+                                onclick="var fp = document.getElementById('detailJumpDate')._flatpickr; if (fp) { fp.open(); }">
+                            <i class="bi bi-calendar3" aria-hidden="true"></i>
+                        </button>
+                        <input type="date" id="detailJumpDate" class="ss-week-nav__date" data-datepicker tabindex="-1" aria-hidden="true"
+                               min="${today}" max="${maxDate}" value="${date}"
+                               onchange="if (this.value) { window.location.href = '${pageContext.request.contextPath}/rooms/detail?id=${card.room.roomId}&date=' + this.value + '&weekStart=' + this.value; }">
+                    </span>
                 </div>
 
                 <!-- Consecutive Selection Notice Alert Banner (Above calendar table) -->
@@ -676,7 +674,7 @@
                     <table class="matrix-table">
                         <thead>
                             <tr>
-                                <th class="matrix-th-corner">DATE &amp; TIME</th>
+                                <th class="matrix-th-corner">Date</th>
                                 <t:forEach items="${card.slots}" var="sa">
                                     <th class="matrix-th-slot">
                                         <div class="matrix-slot-header-time">
@@ -713,7 +711,7 @@
                                             <t:if test="${sa.selectable}">
                                                 <!-- Available Slot: Clickable -->
                                                 <button type="button"
-                                                        class="matrix-slot-btn matrix-slot-available"
+                                                        class="matrix-slot-btn matrix-slot-available ss-slot ss-slot--available"
                                                         data-date="${daySchedule.date}"
                                                         data-date-formatted="${daySchedule.dayOfWeekName}, ${daySchedule.dateFormatted}"
                                                         data-code="${e:esc(sa.slot.slotCode)}"
@@ -722,6 +720,8 @@
                                                         data-sort="${sa.slot.sortOrder}"
                                                         data-price="${sa.slot.listPrice}"
                                                         data-price-formatted="${e:money(sa.slot.listPrice)}"
+                                                        aria-label="${daySchedule.dayOfWeekName}, ${daySchedule.dateFormatted}, ${e:esc(sa.slot.slotName)} ${sa.slot.timeRange}, ${e:money(sa.slot.listPrice)}"
+                                                        aria-pressed="false"
                                                         title="Click to select this time slot">
                                                     <span class="matrix-slot-price">${e:money(sa.slot.listPrice)}</span>
                                                 </button>
@@ -729,15 +729,15 @@
 
                                             <t:if test="${!sa.selectable}">
                                                 <!-- Booked / Past Slot -->
-                                                <div class="matrix-slot-btn matrix-slot-red" title="${e:esc(sa.label)}">
+                                                <div class="matrix-slot-btn matrix-slot-red ss-slot ss-slot--booked" title="${e:esc(sa.label)}">
                                                     <t:if test="${sa.state == 'STARTED'}">
                                                         <i class="bi bi-clock-history slot-past-icon"></i>
                                                         <span class="slot-red-badge">Expired</span>
                                                     </t:if>
                                                     <t:if test="${sa.state != 'STARTED'}">
-                                                        <img src="${pageContext.request.contextPath}/assets/images/branding/tini-smartstay-favicon-round.png"
+                                                        <img src="${pageContext.request.contextPath}/assets/images/branding/tini-smartstay-favicon-96.png"
                                                              alt="Booked"
-                                                             class="slot-booked-favicon-large" />
+                                                             class="slot-booked-favicon-large" width="32" height="32" />
                                                         <span class="slot-red-badge">Booked</span>
                                                     </t:if>
                                                 </div>
@@ -781,7 +781,7 @@
                                     <t:forEach items="${daySchedule.slots}" var="sa">
                                         <t:if test="${sa.selectable}">
                                             <button type="button"
-                                                    class="mobile-slot-card matrix-slot-available"
+                                                    class="mobile-slot-card matrix-slot-available ss-slot ss-slot--available"
                                                     data-date="${daySchedule.date}"
                                                     data-date-formatted="${daySchedule.dayOfWeekName}, ${daySchedule.dateFormatted.substring(0, 5)}"
                                                     data-code="${e:esc(sa.slot.slotCode)}"
@@ -789,7 +789,8 @@
                                                     data-time="${sa.slot.timeRange}"
                                                     data-sort="${sa.slot.sortOrder}"
                                                     data-price="${sa.slot.listPrice}"
-                                                    data-price-formatted="${e:money(sa.slot.listPrice)}">
+                                                    data-price-formatted="${e:money(sa.slot.listPrice)}"
+                                                    aria-pressed="false">
                                                 <div class="card-slot-header d-flex justify-content-between align-items-center w-100">
                                                     <span class="card-slot-code">${e:esc(sa.slot.slotCode)}</span>
                                                     <span class="card-slot-badge-status badge-status-avail">Available</span>
@@ -826,12 +827,12 @@
 
         <!-- Right Column: Dedicated Desktop Booking Summary Card (~32% on Desktop, Hidden on Mobile/Tablet) -->
         <div class="col-12 col-lg-4 d-none d-lg-block">
-            <div class="desktop-booking-summary sticky-top" style="top: 90px; z-index: 90;">
+            <div class="desktop-booking-summary sticky-top ss-reservation-card" style="top: 90px; z-index: 90;">
                 <div class="booking-card-header">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center gap-2">
                             <i class="bi bi-receipt-cutoff text-warning fs-5"></i>
-                            <span class="fw-bold text-white small">Booking Summary</span>
+                            <span class="fw-semibold text-white small">Your booking</span>
                         </div>
                         <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-2 py-0 btn-discount-popover" style="font-size: 0.72rem;"
                                 data-bs-toggle="popover" data-bs-placement="left" data-bs-html="true"
@@ -846,8 +847,8 @@
                     <!-- State 1: When no slot is selected -->
                     <div id="sticky-empty-state" class="text-center py-4">
                         <i class="bi bi-calendar2-check fs-1 d-block mb-2 text-caramel"></i>
-                        <div class="fw-bold text-espresso">No Time Slot Selected</div>
-                        <div class="small mt-1 text-muted" style="font-size: 0.8rem;">Click on available time slots in the calendar on the left to start booking</div>
+                        <div class="fw-semibold text-espresso">No slot selected yet</div>
+                        <div class="small mt-1 text-muted" style="font-size: 0.8rem;">Choose a slot in the calendar to see the price.</div>
                     </div>
 
                     <!-- State 2: When 1 or more slots are selected -->
@@ -864,21 +865,22 @@
                         <!-- Pricing breakdown -->
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-baseline mb-1">
-                                <span class="small text-muted" style="font-size: 0.78rem;">Original Price:</span>
+                                <span class="small text-muted" style="font-size: 0.78rem;">Price</span>
                                 <span id="sticky-subtotal" class="small text-decoration-line-through d-none" style="color: #8C7A6B;">0 VND</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="small text-muted" style="font-size: 0.78rem;">Consecutive Discount:</span>
+                                <span class="small text-muted" style="font-size: 0.78rem;">Combo discount</span>
                                 <span id="sticky-discount-badge" class="badge bg-danger rounded-pill px-2 py-1 small d-none">-0%</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-baseline pt-2 border-top border-latte">
-                                <span class="fw-bold text-espresso small">Total Amount:</span>
+                                <span class="fw-semibold text-espresso small">Total</span>
                                 <span id="sticky-total" class="fs-4 fw-bold font-monospace text-caramel">0 VND</span>
                             </div>
                         </div>
 
                         <!-- Dynamic upsell suggestion -->
                         <div id="sticky-suggestion" class="fw-semibold mb-3 small text-caramel" style="font-size: 0.75rem;"></div>
+                        <p class="ss-cancel-line mb-3" data-cancel-line hidden></p>
 
                         <!-- Terms Checkbox & Payment Button -->
                         <t:if test="${loggedInGuest}">
@@ -889,12 +891,12 @@
                                 </label>
                             </div>
                             <button type="button" id="btn-continue" class="btn btn-continue-gradient fw-bold w-100 py-2 rounded-pill shadow-sm d-flex align-items-center justify-content-center gap-2" disabled>
-                                <span>Continue to Payment</span> <i class="bi bi-arrow-right"></i>
+                                <span>Continue to payment</span>
                             </button>
                         </t:if>
                         <t:if test="${!loggedInGuest}">
                             <a id="btn-login-to-book" href="${pageContext.request.contextPath}/login?next=${e:url(currentDetailUrl)}" class="btn btn-continue-gradient fw-bold w-100 py-2 rounded-pill shadow-sm text-center d-flex align-items-center justify-content-center gap-2">
-                                <span>Login to Book</span> <i class="bi bi-arrow-right"></i>
+                                <span>Log in to book</span>
                             </a>
                         </t:if>
                     </div>
@@ -912,25 +914,28 @@
     </form>
 
     <!-- 4. Mobile Agoda-Style Compact Sticky Bottom Bar (< 992px) -->
-    <div id="mobile-booking-bar" class="mobile-booking-bar d-lg-none d-none">
-        <div class="mobile-bar-inner d-flex align-items-center justify-content-between h-100">
-            <!-- Left Info: Slots, Discount, Price, Details Toggle (never clipped, wraps gracefully) -->
-            <div class="mobile-bar-left">
-                <div class="d-flex align-items-center gap-1 flex-wrap">
-                    <span class="badge rounded-pill text-white bg-caramel" id="mobile-bar-slots-count" style="font-size: 0.72rem;">1 slot</span>
-                    <span class="badge rounded-pill bg-danger text-white d-none" id="mobile-bar-discount" style="font-size: 0.72rem;">-10%</span>
-                    <button type="button" class="btn btn-link text-decoration-none p-0 ms-1 mobile-bar-toggle-btn" id="mobileBarToggleBtn">
-                        <span class="small fw-semibold text-latte" style="font-size: 0.75rem;" id="mobileBarToggleText">&#9650; Details</span>
+    <%-- R5: ids and slot-matrix.js hooks unchanged; layout is CSS (ss-bookbar-m) and the empty
+         state ("Select a slot" + disabled button) is toggled by booking-bar.js. --%>
+    <div id="mobile-booking-bar" class="mobile-booking-bar d-lg-none d-none ss-bookbar-m ss-bookbar-m--empty" role="region" aria-label="Booking summary">
+        <div class="mobile-bar-inner ss-bookbar-m__inner">
+            <div class="mobile-bar-left ss-bookbar-m__left">
+                <div class="ss-bookbar-m__row">
+                    <span class="ss-bookbar-m__chip">
+                        <span class="ss-bookbar-m__count" id="mobile-bar-slots-count">1 slot</span>
+                        <span class="ss-bookbar-m__discount d-none" id="mobile-bar-discount">-10%</span>
+                    </span>
+                    <button type="button" class="btn mobile-bar-toggle-btn ss-bookbar-m__details" id="mobileBarToggleBtn"
+                            aria-controls="mobile-booking-drawer" aria-expanded="false">
+                        <span id="mobileBarToggleText">Details</span>
+                        <i class="bi bi-chevron-up" aria-hidden="true"></i>
                     </button>
                 </div>
-                <div class="mobile-bar-price fw-bold text-white fs-5 font-monospace lh-1 mt-1" id="mobile-bar-price">
-                    0 VND
-                </div>
+                <span class="ss-bookbar-m__empty">Select a slot</span>
+                <div class="mobile-bar-price ss-bookbar-m__price" id="mobile-bar-price">0 VND</div>
             </div>
-            <!-- Right Action: Thumb-friendly Book Now Button -->
-            <div class="mobile-bar-right flex-shrink-0 ms-2">
-                <button type="button" class="btn btn-mobile-book-now fw-bold px-3 py-2 rounded-pill shadow-sm" id="mobileBarBookBtn">
-                    Book Now &rarr;
+            <div class="mobile-bar-right ss-bookbar-m__right">
+                <button type="button" class="btn btn-mobile-book-now ss-bookbar-m__cta" id="mobileBarBookBtn">
+                    Book Now
                 </button>
             </div>
         </div>
@@ -940,7 +945,7 @@
     <div id="mobile-drawer-backdrop" class="mobile-drawer-backdrop d-lg-none"></div>
 
     <!-- Mobile Bottom Sheet Drawer (< 992px) -->
-    <div id="mobile-booking-drawer" class="mobile-booking-drawer d-lg-none">
+    <div id="mobile-booking-drawer" class="mobile-booking-drawer d-lg-none ss-booksheet" role="dialog" aria-label="Booking details">
         <div class="mobile-drawer-header d-flex align-items-center justify-content-between p-3 border-bottom bg-cocoa text-milk">
             <div class="d-flex align-items-center gap-2">
                 <i class="bi bi-receipt-cutoff text-warning fs-5"></i>
@@ -963,23 +968,24 @@
             <!-- Price Breakdown -->
             <div class="mb-3">
                 <div class="d-flex justify-content-between align-items-baseline mb-1">
-                    <span class="small text-muted" style="font-size: 0.78rem;">Original Price:</span>
+                    <span class="small text-muted" style="font-size: 0.78rem;">Price</span>
                     <span id="mobile-drawer-subtotal" class="small text-decoration-line-through d-none" style="color: #8C7A6B;">0 VND</span>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="small text-muted" style="font-size: 0.78rem;">Consecutive Discount:</span>
+                    <span class="small text-muted" style="font-size: 0.78rem;">Combo discount</span>
                     <div class="text-end">
                         <span id="mobile-drawer-discount-badge" class="badge bg-danger rounded-pill px-2 py-1 small d-none">-0%</span>
                         <span id="mobile-drawer-discount-rule" class="small text-danger fw-semibold ms-1 d-none"></span>
                     </div>
                 </div>
                 <div class="d-flex justify-content-between align-items-baseline pt-2 border-top border-latte">
-                    <span class="fw-bold text-espresso small">Total Amount:</span>
+                    <span class="fw-semibold text-espresso small">Total</span>
                     <span id="mobile-drawer-total" class="fs-4 fw-bold font-monospace text-caramel">0 VND</span>
                 </div>
             </div>
 
             <div id="mobile-drawer-suggestion" class="fw-semibold mb-3 small text-caramel" style="font-size: 0.75rem;"></div>
+            <p class="ss-cancel-line mb-3" data-cancel-line hidden></p>
 
             <t:if test="${loggedInGuest}">
                 <div class="form-check mb-3">
@@ -989,12 +995,12 @@
                     </label>
                 </div>
                 <button type="button" id="btn-mobile-continue" class="btn btn-continue-gradient fw-bold w-100 py-3 rounded-pill shadow-sm d-flex align-items-center justify-content-center gap-2" disabled>
-                    <span>Continue to Payment</span> <i class="bi bi-arrow-right"></i>
+                    <span>Continue to payment</span>
                 </button>
             </t:if>
             <t:if test="${!loggedInGuest}">
                 <a href="${pageContext.request.contextPath}/login?next=${e:url(currentDetailUrl)}" class="btn btn-continue-gradient fw-bold w-100 py-3 rounded-pill shadow-sm text-center d-flex align-items-center justify-content-center gap-2">
-                    <span>Login to Book</span> <i class="bi bi-arrow-right"></i>
+                    <span>Log in to book</span>
                 </a>
             </t:if>
         </div>
@@ -1055,7 +1061,7 @@
                     <i class="bi bi-chevron-left" aria-hidden="true"></i>
                 </button>
                 <div class="lb-img-wrap">
-                    <img src="${pageContext.request.contextPath}/${card.room.resolvedImageUrl}" alt="${e:esc(card.room.displayTitle)} full view" class="lb-main-img" onerror="this.onerror=null; this.src='${pageContext.request.contextPath}/assets/images/branding/hero_img2.jpg';">
+                    <img src="${pageContext.request.contextPath}/${card.room.resolvedImageUrl}" alt="${e:esc(card.room.displayTitle)} full view" class="lb-main-img" width="768" height="576" loading="lazy" onerror="this.onerror=null; this.src='${pageContext.request.contextPath}/assets/images/branding/hero_img2.jpg';">
                 </div>
                 <button type="button" class="lb-nav-btn lb-next" aria-label="Next photo">
                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
@@ -1070,4 +1076,7 @@
     <!-- Interactive Scripts -->
     <script src="${pageContext.request.contextPath}/assets/js/gallery.js"></script>
     <script src="${pageContext.request.contextPath}/assets/js/slot-matrix.js"></script>
+    <script src="${pageContext.request.contextPath}/assets/js/cancel-policy.js"></script>
+    <script src="${pageContext.request.contextPath}/assets/js/booking-bar.js"></script>
+    <script src="${pageContext.request.contextPath}/assets/js/room-search.js"></script>
 </t:layout>

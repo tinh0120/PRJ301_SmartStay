@@ -52,7 +52,40 @@ public class ReviewListServlet extends HttpServlet {
 
         try {
             PageRequest pr = PageRequest.from(req, SORT_KEYS, "created", "DESC");
+
+            // R11 tabs: All | Visible | Hidden | Needs attention (rating 2 or lower)
+            String tab = pr.getFilter("tab").toLowerCase();
+            if (tab.isEmpty()) {
+                String legacy = pr.getFilter("status").toUpperCase();
+                tab = "VISIBLE".equals(legacy) ? "visible" : ("HIDDEN".equals(legacy) ? "hidden" : "all");
+            }
+            if (!"all".equals(tab) && !"visible".equals(tab) && !"hidden".equals(tab) && !"attention".equals(tab)) {
+                tab = "all";
+            }
+            pr.setFilter("tab", "all".equals(tab) ? null : tab);
+            pr.setFilter("status", "visible".equals(tab) ? "VISIBLE" : ("hidden".equals(tab) ? "HIDDEN" : null));
+            pr.setFilter("attention", "attention".equals(tab) ? "1" : null);
+
             PageResult<Review> result = reviewDao.findPage(pr);
+
+            Long roomFilter = null;
+            try {
+                if (!pr.getFilter("roomId").isEmpty()) {
+                    roomFilter = Long.valueOf(pr.getFilter("roomId").trim());
+                }
+            } catch (NumberFormatException ignored) {
+                pr.setFilter("roomId", null);
+            }
+            try {
+                req.setAttribute("tabCounts", reviewDao.getTabCounts(roomFilter));
+            } catch (SQLException ex) {
+                LOGGER.log(Level.WARNING, "Failed to count reviews per tab", ex);
+            }
+            req.setAttribute("tab", tab);
+            req.setAttribute("selectedRoomId", roomFilter);
+            req.setAttribute("tabBaseQs", pr.toQueryString("page", "size", "tab", "status", "attention"));
+            req.setAttribute("roomBaseQs", pr.toQueryString("page", "size", "roomId", "status", "attention"));
+            req.setAttribute("returnQs", pr.toQueryString("size", "status", "attention"));
             List<Room> rooms = roomDao.findAllActive();
 
             req.setAttribute("result", result);
@@ -147,7 +180,8 @@ public class ReviewListServlet extends HttpServlet {
     private void redirectToReviews(HttpServletRequest req, HttpServletResponse resp, String redirectQuery)
             throws IOException {
         String target = req.getContextPath() + "/admin/reviews";
-        if (redirectQuery != null && !redirectQuery.trim().isEmpty()) {
+        if (redirectQuery != null && !redirectQuery.trim().isEmpty()
+                && redirectQuery.indexOf('\r') < 0 && redirectQuery.indexOf('\n') < 0) {
             target += "?" + redirectQuery.trim();
         }
         resp.sendRedirect(target);

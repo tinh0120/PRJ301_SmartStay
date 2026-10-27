@@ -69,21 +69,23 @@ public class DashboardDao {
         String sql = "SELECT b.status, COUNT(DISTINCT b.booking_id) AS cnt "
                    + "FROM BOOKING b "
                    + "JOIN BOOKING_SLOT bs ON b.booking_id = bs.booking_id "
-                   + "WHERE bs.slot_date = CAST(SYSDATETIME() AS date) "
+                   + "WHERE bs.slot_date = ? "
                    + "GROUP BY b.status";
         try (Connection conn = DBUtil.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            int total = 0;
-            while (rs.next()) {
-                String st = rs.getString("status");
-                int cnt = rs.getInt("cnt");
-                if (st != null) {
-                    map.put(st.toUpperCase(), cnt);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, java.sql.Date.valueOf(util.ClockService.now().toLocalDate()));
+            try (ResultSet rs = ps.executeQuery()) {
+                int total = 0;
+                while (rs.next()) {
+                    String st = rs.getString("status");
+                    int cnt = rs.getInt("cnt");
+                    if (st != null) {
+                        map.put(st.toUpperCase(), cnt);
+                    }
+                    total += cnt;
                 }
-                total += cnt;
+                map.put("TOTAL", total);
             }
-            map.put("TOTAL", total);
         }
         return map;
     }
@@ -96,18 +98,23 @@ public class DashboardDao {
      */
     public long[] getRevenueTodayAndMonth() throws SQLException {
         long[] result = new long[]{0L, 0L};
+        LocalDate today = util.ClockService.now().toLocalDate();
         String sql = "SELECT "
-                   + "  ISNULL(SUM(CASE WHEN CAST(p.paid_at AS date) = CAST(SYSDATETIME() AS date) THEN p.amount ELSE 0 END), 0) AS rev_today, "
-                   + "  ISNULL(SUM(CASE WHEN YEAR(p.paid_at) = YEAR(SYSDATETIME()) AND MONTH(p.paid_at) = MONTH(SYSDATETIME()) THEN p.amount ELSE 0 END), 0) AS rev_month "
+                   + "  ISNULL(SUM(CASE WHEN CAST(p.paid_at AS date) = ? THEN p.amount ELSE 0 END), 0) AS rev_today, "
+                   + "  ISNULL(SUM(CASE WHEN YEAR(p.paid_at) = ? AND MONTH(p.paid_at) = ? THEN p.amount ELSE 0 END), 0) AS rev_month "
                    + "FROM PAYMENT p "
                    + "JOIN BOOKING b ON p.booking_id = b.booking_id "
                    + "WHERE p.status = 'PAID' AND b.status <> 'CANCELLED'";
         try (Connection conn = DBUtil.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            if (rs.next()) {
-                result[0] = rs.getLong("rev_today");
-                result[1] = rs.getLong("rev_month");
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(today));
+            ps.setInt(2, today.getYear());
+            ps.setInt(3, today.getMonthValue());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    result[0] = rs.getLong("rev_today");
+                    result[1] = rs.getLong("rev_month");
+                }
             }
         }
         return result;
@@ -262,7 +269,7 @@ public class DashboardDao {
      * @return Map with "labels" (List of yyyy-MM-dd) and "values" (List of Long)
      */
     public Map<String, Object> getRevenueLast7Days() throws SQLException {
-        LocalDate today = LocalDate.now();
+        LocalDate today = util.ClockService.now().toLocalDate();
         LocalDate startDate = today.minusDays(6);
 
         Map<String, Long> dayTotals = new LinkedHashMap<>();
@@ -679,5 +686,321 @@ public class DashboardDao {
         }
 
         return list;
+    }
+
+    // =========================================================================
+    // DASHBOARD v2 (Task R6): "what do I need to do today?"
+    // Business time comes from ClockService; device status uses REAL time.
+    // =========================================================================
+
+    /**
+     * Check-ins today: [0] = already checked in, [1] = expected (first slot starts today and the
+     * booking is confirmed, checked in, completed or became a no-show).
+     */
+    public int[] getCheckinsToday(LocalDate today) throws SQLException {
+        // Same predicate as the Bookings page chip ?chip=checkins_today (R7)
+        String sql = "SELECT "
+                + "  SUM(CASE WHEN b.actual_checkin_at IS NOT NULL THEN 1 ELSE 0 END) AS done_cnt, "
+                + "  COUNT(*) AS expected_cnt "
+                + "FROM BOOKING b WHERE " + BookingDao.CHECKIN_TODAY_PREDICATE;
+        return countPair(sql, today);
+    }
+
+    /** Check-outs today: [0] = already checked out, [1] = expected (last slot ends today). */
+    public int[] getCheckoutsToday(LocalDate today) throws SQLException {
+        // Same predicate as the Bookings page chip ?chip=checkouts_today (R7)
+        String sql = "SELECT "
+                + "  SUM(CASE WHEN b.status = 'CHECKED_OUT' THEN 1 ELSE 0 END) AS done_cnt, "
+                + "  COUNT(*) AS expected_cnt "
+                + "FROM BOOKING b WHERE " + BookingDao.CHECKOUT_TODAY_PREDICATE;
+        return countPair(sql, today);
+    }
+
+    private int[] countPair(String sql, LocalDate day) throws SQLException {
+        int[] out = new int[]{0, 0};
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(day));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    out[0] = rs.getInt("done_cnt");
+                    out[1] = rs.getInt("expected_cnt");
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * NEW (unacknowledged) alerts by severity: the same set as the Alerts page "Open" tab
+     * (/admin/alerts?status=NEW). Keys CRITICAL, HIGH, MEDIUM, LOW, TOTAL.
+     */
+    public Map<String, Integer> getNewAlertsBySeverity() throws SQLException {
+        Map<String, Integer> map = new LinkedHashMap<>();
+        map.put("CRITICAL", 0);
+        map.put("HIGH", 0);
+        map.put("MEDIUM", 0);
+        map.put("LOW", 0);
+        int total = 0;
+        String sql = "SELECT severity, COUNT(*) AS cnt FROM ALERT_LOG WHERE status = 'NEW' GROUP BY severity";
+        try (Connection conn = DBUtil.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                String sev = rs.getString("severity");
+                int cnt = rs.getInt("cnt");
+                if (sev != null) {
+                    map.put(sev.toUpperCase(), cnt);
+                }
+                total += cnt;
+            }
+        }
+        map.put("TOTAL", total);
+        return map;
+    }
+
+    /**
+     * Revenue month-to-date vs the same days of the previous month (PAID, booking not cancelled).
+     * [0] = this month 1..today, [1] = previous month 1..same day (clamped to its length).
+     */
+    public long[] getRevenueMonthToDate(LocalDate today) throws SQLException {
+        LocalDate start = today.withDayOfMonth(1);
+        LocalDate prevStart = start.minusMonths(1);
+        LocalDate prevEnd = prevStart.withDayOfMonth(Math.min(today.getDayOfMonth(), prevStart.lengthOfMonth()));
+        String sql = "SELECT "
+                + "  ISNULL(SUM(CASE WHEN CAST(p.paid_at AS date) BETWEEN ? AND ? THEN p.amount ELSE 0 END), 0) AS cur, "
+                + "  ISNULL(SUM(CASE WHEN CAST(p.paid_at AS date) BETWEEN ? AND ? THEN p.amount ELSE 0 END), 0) AS prev "
+                + "FROM PAYMENT p JOIN BOOKING b ON p.booking_id = b.booking_id "
+                + "WHERE p.status = 'PAID' AND b.status <> 'CANCELLED'";
+        long[] out = new long[]{0L, 0L};
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(start));
+            ps.setDate(2, Date.valueOf(today));
+            ps.setDate(3, Date.valueOf(prevStart));
+            ps.setDate(4, Date.valueOf(prevEnd));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    out[0] = rs.getLong("cur");
+                    out[1] = rs.getLong("prev");
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Active rooms with status and next event (check-out of the current stay, else next check-in). */
+    public List<model.RoomTile> getRoomTiles(java.time.LocalDateTime now) throws SQLException {
+        String sql = "SELECT r.room_id, r.room_number, r.display_name, r.status, "
+                + "  (SELECT MIN(b.checkout_at) FROM BOOKING b WHERE b.room_id = r.room_id AND b.status = 'CHECKED_IN') AS next_checkout, "
+                + "  (SELECT MIN(b.checkin_at) FROM BOOKING b WHERE b.room_id = r.room_id AND b.status = 'CONFIRMED' AND b.checkin_at >= ?) AS next_checkin "
+                + "FROM ROOM r WHERE r.is_active = 1 ORDER BY r.room_number";
+        List<model.RoomTile> tiles = new ArrayList<>();
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, Timestamp.valueOf(now));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    model.RoomTile t = new model.RoomTile();
+                    t.setRoomId(rs.getLong("room_id"));
+                    t.setRoomNumber(rs.getString("room_number"));
+                    t.setDisplayName(rs.getString("display_name"));
+                    t.setStatus(rs.getString("status"));
+                    Timestamp out = rs.getTimestamp("next_checkout");
+                    Timestamp in = rs.getTimestamp("next_checkin");
+                    if (out != null) {
+                        t.setNextEvent("Check-out " + eventTime(out.toLocalDateTime(), now));
+                    } else if (in != null) {
+                        t.setNextEvent("Check-in " + eventTime(in.toLocalDateTime(), now));
+                    }
+                    tiles.add(t);
+                }
+            }
+        }
+        return tiles;
+    }
+
+    /** "14:00" today, "26/10 14:00" on another day. */
+    public static String eventTime(java.time.LocalDateTime t, java.time.LocalDateTime now) {
+        if (t.toLocalDate().equals(now.toLocalDate())) {
+            return t.format(DateTimeFormatter.ofPattern("HH:mm"));
+        }
+        return t.format(DateTimeFormatter.ofPattern("dd/MM HH:mm"));
+    }
+
+    /**
+     * "Needs attention" sources, most urgent first. Returns every candidate; the caller shows the
+     * first few. Sources: NEW HIGH/CRITICAL alerts, faulty / offline devices (REAL time), overdue
+     * check-ins, REFUND_PENDING payments, no-shows still holding slots, expired cleaning shifts.
+     */
+    public List<model.AttentionItem> getAttentionItems(java.time.LocalDateTime now) throws SQLException {
+        List<model.AttentionItem> items = new ArrayList<>();
+        DateTimeFormatter hm = DateTimeFormatter.ofPattern("HH:mm");
+        DateTimeFormatter dm = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        try (Connection conn = DBUtil.getConnection()) {
+
+            // 1. Unacknowledged HIGH / CRITICAL alerts
+            String alertSql = "SELECT TOP 10 alert_id, alert_type, severity, message, created_at "
+                    + "FROM ALERT_LOG WHERE status = 'NEW' AND severity IN ('CRITICAL', 'HIGH') "
+                    + "ORDER BY created_at DESC, alert_id DESC";
+            try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(alertSql)) {
+                while (rs.next()) {
+                    boolean critical = "CRITICAL".equalsIgnoreCase(rs.getString("severity"));
+                    String type = rs.getString("alert_type");
+                    Timestamp ts = rs.getTimestamp("created_at");
+                    items.add(new model.AttentionItem(
+                            critical ? model.AttentionItem.RANK_CRITICAL_ALERT : model.AttentionItem.RANK_HIGH_ALERT,
+                            critical ? "critical" : "high",
+                            util.AlertTitles.title(type),
+                            shorten(rs.getString("message"), 110),
+                            "Review",
+                            "/admin/alerts?status=NEW&type=" + urlEncode(type),
+                            ts != null ? ts.toLocalDateTime() : null));
+                }
+            }
+
+            // 2. Devices: faults one by one, offline ones grouped (REAL time heartbeat)
+            String devSql = "SELECT device_id, device_name, status, last_seen_at FROM DEVICE "
+                    + "WHERE is_active = 1 AND (status = 'FAULT' OR last_seen_at IS NULL "
+                    + "      OR last_seen_at < DATEADD(SECOND, -?, SYSDATETIME())) "
+                    + "ORDER BY device_name";
+            List<String> offline = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(devSql)) {
+                ps.setInt(1, util.AppConstants.DEVICE_OFFLINE_AFTER_SECONDS);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String name = rs.getString("device_name");
+                        if ("FAULT".equalsIgnoreCase(rs.getString("status"))) {
+                            Timestamp seen = rs.getTimestamp("last_seen_at");
+                            items.add(new model.AttentionItem(model.AttentionItem.RANK_DEVICE_FAULT, "critical",
+                                    name + " reports a fault",
+                                    seen != null ? "Last seen " + util.ElFunctions.timeAgo(seen) : "Never connected",
+                                    "Check device",
+                                    "/admin/devices/edit?deviceId=" + urlEncode(rs.getString("device_id")),
+                                    seen != null ? seen.toLocalDateTime() : null));
+                        } else {
+                            offline.add(name);
+                        }
+                    }
+                }
+            }
+            if (!offline.isEmpty()) {
+                items.add(new model.AttentionItem(model.AttentionItem.RANK_DEVICES_OFFLINE, "high",
+                        // No count here: the Devices strip already shows it (no number twice on the page)
+                        offline.size() == 1 ? offline.get(0) + " is offline" : "Some devices are offline",
+                        shorten(String.join(", ", offline), 110),
+                        offline.size() == 1 ? "Check device" : "Check devices",
+                        "/admin/devices",
+                        null));
+            }
+
+            // 3. Overdue check-ins (confirmed, first slot already started, nobody checked in yet)
+            String overdueSql = "SELECT TOP 10 b.booking_id, b.booking_code, b.checkin_at, r.room_number "
+                    + "FROM BOOKING b JOIN ROOM r ON b.room_id = r.room_id "
+                    + "WHERE b.status = 'CONFIRMED' AND b.actual_checkin_at IS NULL AND b.checkin_at < ? "
+                    + "ORDER BY b.checkin_at";
+            try (PreparedStatement ps = conn.prepareStatement(overdueSql)) {
+                ps.setTimestamp(1, Timestamp.valueOf(now));
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        java.time.LocalDateTime due = rs.getTimestamp("checkin_at").toLocalDateTime();
+                        items.add(new model.AttentionItem(model.AttentionItem.RANK_OVERDUE_CHECKIN, "high",
+                                rs.getString("booking_code") + " has not checked in",
+                                "Room " + rs.getString("room_number") + ", due at " + eventTime(due, now),
+                                "View booking",
+                                "/admin/bookings/detail?id=" + rs.getLong("booking_id"),
+                                due));
+                    }
+                }
+            }
+
+            // 4. Refunds waiting for the operator
+            String refundSql = "SELECT TOP 10 b.booking_id, b.booking_code, p.amount, b.cancelled_at "
+                    + "FROM PAYMENT p JOIN BOOKING b ON p.booking_id = b.booking_id "
+                    + "WHERE p.status = 'REFUND_PENDING' ORDER BY b.cancelled_at";
+            try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(refundSql)) {
+                while (rs.next()) {
+                    Timestamp cancelled = rs.getTimestamp("cancelled_at");
+                    items.add(new model.AttentionItem(model.AttentionItem.RANK_REFUND, "medium",
+                            "Refund " + rs.getString("booking_code"),
+                            util.ElFunctions.money(rs.getBigDecimal("amount"))
+                                    + (cancelled != null ? ", cancelled " + cancelled.toLocalDateTime().format(dm) : ""),
+                            "Refund",
+                            "/admin/bookings/detail?id=" + rs.getLong("booking_id"),
+                            cancelled != null ? cancelled.toLocalDateTime() : null));
+                }
+            }
+
+            // 5. No-shows still holding slots (grouped)
+            int noshowHeld = getNoshowHeldCount();
+            if (noshowHeld > 0) {
+                items.add(new model.AttentionItem(model.AttentionItem.RANK_NOSHOW_HELD, "medium",
+                        noshowHeld == 1 ? "1 no-show still holds its slots" : noshowHeld + " no-shows still hold their slots",
+                        "Release the slots so other guests can book them.",
+                        "View bookings",
+                        "/admin/bookings?flag=noshow_held",
+                        null));
+            }
+
+            // 6. Cleaning shifts that ended while the room is still dirty
+            String cleanSql = "SELECT TOP 10 sa.assignment_id, sa.shift_end, r.room_number "
+                    + "FROM STAFF_ASSIGNMENT sa JOIN ROOM r ON sa.room_id = r.room_id "
+                    + "WHERE sa.status = 'EXPIRED' AND r.status = 'NEEDS_CLEANING' "
+                    + "  AND NOT EXISTS (SELECT 1 FROM STAFF_ASSIGNMENT sa2 WHERE sa2.room_id = sa.room_id "
+                    + "                  AND sa2.status = 'ASSIGNED') "
+                    + "ORDER BY sa.shift_end DESC";
+            try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(cleanSql)) {
+                java.util.Set<String> seenRooms = new java.util.HashSet<>();
+                while (rs.next()) {
+                    String room = rs.getString("room_number");
+                    if (!seenRooms.add(room)) {
+                        continue;
+                    }
+                    java.time.LocalDateTime end = rs.getTimestamp("shift_end").toLocalDateTime();
+                    items.add(new model.AttentionItem(model.AttentionItem.RANK_CLEANING_EXPIRED, "medium",
+                            "Room " + room + " was not cleaned in time",
+                            "Shift ended " + eventTime(end, now),
+                            "Reassign",
+                            "/admin/assignments",
+                            end));
+                }
+            }
+        }
+
+        sortAttention(items);
+        return items;
+    }
+
+    /** Most urgent first; within the same rank, the oldest (longest waiting) first. */
+    public static void sortAttention(List<model.AttentionItem> items) {
+        java.util.Collections.sort(items, new java.util.Comparator<model.AttentionItem>() {
+            @Override
+            public int compare(model.AttentionItem a, model.AttentionItem b) {
+                int c = Integer.compare(a.getRank(), b.getRank());
+                if (c != 0) {
+                    return c;
+                }
+                if (a.getAt() == null || b.getAt() == null) {
+                    return (a.getAt() == null) ? (b.getAt() == null ? 0 : 1) : -1;
+                }
+                return a.getAt().compareTo(b.getAt());
+            }
+        });
+    }
+
+    private static String shorten(String s, int max) {
+        if (s == null) {
+            return "";
+        }
+        String t = s.trim();
+        return t.length() <= max ? t : t.substring(0, max - 1).trim() + "…";
+    }
+
+    private static String urlEncode(String s) {
+        try {
+            return java.net.URLEncoder.encode(s == null ? "" : s, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            return "";
+        }
     }
 }

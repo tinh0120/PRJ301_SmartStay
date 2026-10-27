@@ -44,6 +44,14 @@ public class DeviceLogDao {
         MOTION_SORT_WHITELIST = Collections.unmodifiableMap(mMap);
     }
 
+    /** Joins shared by the access-log count and data queries (R9: device name + guest search). */
+    private static final String ACCESS_JOINS =
+            "LEFT JOIN ACCESS_CREDENTIAL c ON a.credential_id = c.credential_id "
+            + "LEFT JOIN BOOKING b ON c.booking_id = b.booking_id "
+            + "LEFT JOIN APP_USER u ON b.guest_id = u.user_id "
+            + "LEFT JOIN ROOM r ON b.room_id = r.room_id "
+            + "LEFT JOIN DEVICE dv ON a.device_id = dv.device_id ";
+
     public DeviceLogDao() {
     }
 
@@ -95,11 +103,16 @@ public class DeviceLogDao {
 
         String keyword = pr.getKeyword();
         if (keyword != null && !keyword.trim().isEmpty()) {
-            where.append("AND a.request_id LIKE ? ");
-            params.add(SqlUtil.escapeLike(keyword.trim()));
+            // R9: search by guest, booking code, room, door or request id
+            where.append("AND (a.request_id LIKE ? OR b.booking_code LIKE ? OR u.full_name LIKE ? "
+                    + "OR r.room_number LIKE ? OR a.device_id LIKE ? OR dv.device_name LIKE ?) ");
+            String kw = SqlUtil.escapeLike(keyword.trim());
+            for (int i = 0; i < 6; i++) {
+                params.add(kw);
+            }
         }
 
-        String countSql = "SELECT COUNT(*) FROM ACCESS_LOG a " + where.toString();
+        String countSql = "SELECT COUNT(*) FROM ACCESS_LOG a " + ACCESS_JOINS + where.toString();
         int total = 0;
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(countSql)) {
@@ -130,12 +143,9 @@ public class DeviceLogDao {
         dataSql.append("SELECT a.access_log_id, a.credential_id, a.device_id, a.request_id, ")
                .append("a.attempted_at, CONVERT(varchar, a.attempted_at, 120) AS attempted_at_str, ")
                .append("a.result, a.reason_code, ")
-               .append("c.booking_id, b.booking_code, u.full_name AS guest_name, r.room_number ")
+               .append("c.booking_id, b.booking_code, u.full_name AS guest_name, r.room_number, dv.device_name ")
                .append("FROM ACCESS_LOG a ")
-               .append("LEFT JOIN ACCESS_CREDENTIAL c ON a.credential_id = c.credential_id ")
-               .append("LEFT JOIN BOOKING b ON c.booking_id = b.booking_id ")
-               .append("LEFT JOIN APP_USER u ON b.guest_id = u.user_id ")
-               .append("LEFT JOIN ROOM r ON b.room_id = r.room_id ")
+               .append(ACCESS_JOINS)
                .append(where.toString())
                .append("ORDER BY ").append(sortColumn).append(" ").append(dir)
                .append(", a.access_log_id DESC ")
@@ -173,6 +183,7 @@ public class DeviceLogDao {
                     entry.setBookingCode(rs.getString("booking_code"));
                     entry.setGuestName(rs.getString("guest_name"));
                     entry.setRoomNumber(rs.getString("room_number"));
+                    entry.setDeviceName(rs.getString("device_name"));
 
                     list.add(entry);
                 }
@@ -250,11 +261,20 @@ public class DeviceLogDao {
 
         String keyword = pr.getKeyword();
         if (keyword != null && !keyword.trim().isEmpty()) {
-            where.append("AND m.event_id LIKE ? ");
-            params.add(SqlUtil.escapeLike(keyword.trim()));
+            // R9: search by event id, device id or device name
+            where.append("AND (m.event_id LIKE ? OR m.device_id LIKE ? OR dv.device_name LIKE ?) ");
+            String kw = SqlUtil.escapeLike(keyword.trim());
+            params.add(kw);
+            params.add(kw);
+            params.add(kw);
         }
 
-        String countSql = "SELECT COUNT(*) FROM MOTION_LOG m " + where.toString();
+        // R9 chip "Close range": distance under 50 cm
+        if ("1".equals(pr.getFilter("close"))) {
+            where.append("AND m.distance_cm < 50 ");
+        }
+
+        String countSql = "SELECT COUNT(*) FROM MOTION_LOG m LEFT JOIN DEVICE dv ON m.device_id = dv.device_id " + where.toString();
         int total = 0;
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(countSql)) {
@@ -284,8 +304,8 @@ public class DeviceLogDao {
         StringBuilder dataSql = new StringBuilder();
         dataSql.append("SELECT m.motion_log_id, m.device_id, m.zone_id, m.event_id, ")
                .append("m.detected_at, CONVERT(varchar, m.detected_at, 120) AS detected_at_str, ")
-               .append("m.distance_cm, m.snapshot_path, m.received_at ")
-               .append("FROM MOTION_LOG m ")
+               .append("m.distance_cm, m.snapshot_path, m.received_at, dv.device_name ")
+               .append("FROM MOTION_LOG m LEFT JOIN DEVICE dv ON m.device_id = dv.device_id ")
                .append(where.toString())
                .append("ORDER BY ").append(sortColumn).append(" ").append(dir)
                .append(", m.motion_log_id DESC ")
@@ -313,6 +333,7 @@ public class DeviceLogDao {
                     entry.setDistanceCm(rs.getBigDecimal("distance_cm"));
                     entry.setSnapshotPath(rs.getString("snapshot_path"));
                     entry.setReceivedAt(rs.getTimestamp("received_at"));
+                    entry.setDeviceName(rs.getString("device_name"));
                     list.add(entry);
                 }
             }

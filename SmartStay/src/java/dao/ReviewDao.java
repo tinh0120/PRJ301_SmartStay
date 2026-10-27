@@ -182,6 +182,11 @@ public class ReviewDao {
             params.add(status.trim().toUpperCase());
         }
 
+        // 2b. R11 "Needs attention" tab: rating 2 or lower
+        if ("1".equals(pr.getFilter("attention"))) {
+            where.append("AND r.rating <= 2 ");
+        }
+
         // 3. roomId
         String roomIdStr = pr.getFilter("roomId");
         if (roomIdStr != null && !roomIdStr.trim().isEmpty()) {
@@ -197,7 +202,7 @@ public class ReviewDao {
         String kw = pr.getKeyword();
         if (kw != null && !kw.trim().isEmpty()) {
             where.append("AND (r.comment LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?) ");
-            String wildcard = "%" + kw.trim() + "%";
+            String wildcard = util.SqlUtil.escapeLike(kw);
             params.add(wildcard);
             params.add(wildcard);
             params.add(wildcard);
@@ -355,6 +360,33 @@ public class ReviewDao {
     }
 
     /**
+     * R11 tab counts: ALL, VISIBLE, HIDDEN, ATTENTION (rating 2 or lower), optionally for one room.
+     */
+    public Map<String, Integer> getTabCounts(Long roomId) throws SQLException {
+        String sql = "SELECT COUNT(*) AS all_cnt, "
+                   + "SUM(CASE WHEN status = 'VISIBLE' THEN 1 ELSE 0 END) AS visible_cnt, "
+                   + "SUM(CASE WHEN status = 'HIDDEN' THEN 1 ELSE 0 END) AS hidden_cnt, "
+                   + "SUM(CASE WHEN rating <= 2 THEN 1 ELSE 0 END) AS attention_cnt "
+                   + "FROM REVIEW" + (roomId != null ? " WHERE room_id = ?" : "");
+        Map<String, Integer> m = new HashMap<>();
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (roomId != null) {
+                ps.setLong(1, roomId);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    m.put("ALL", rs.getInt("all_cnt"));
+                    m.put("VISIBLE", rs.getInt("visible_cnt"));
+                    m.put("HIDDEN", rs.getInt("hidden_cnt"));
+                    m.put("ATTENTION", rs.getInt("attention_cnt"));
+                }
+            }
+        }
+        return m;
+    }
+
+    /**
      * Retrieves aggregated rating statistics for each active room.
      */
     public List<Map<String, Object>> getRoomRatingSummaries() throws SQLException {
@@ -382,6 +414,8 @@ public class ReviewDao {
                 double avg = rs.getDouble("avg_rating");
                 map.put("avgRating", String.format(java.util.Locale.US, "%.1f", avg));
                 map.put("rawAvg", avg);
+                // R11: width of the small star bar (average out of 5)
+                map.put("avgPercent", (int) Math.round(Math.max(0, Math.min(5, avg)) * 20));
                 list.add(map);
             }
         }

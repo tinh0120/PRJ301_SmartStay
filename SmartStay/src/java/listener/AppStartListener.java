@@ -61,6 +61,9 @@ public class AppStartListener implements ServletContextListener {
         });
         slowScheduler.scheduleWithFixedDelay(new SlowWorker(), 3, 60, TimeUnit.SECONDS);
         LOGGER.info("SmartStay Slow Worker started (60s fixed delay).");
+
+        // 3. Connect to the MQTT broker early so the first remote door command is instant
+        service.MqttService.warmUp();
     }
 
     /**

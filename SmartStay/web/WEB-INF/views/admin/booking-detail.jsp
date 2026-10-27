@@ -2,135 +2,88 @@
 <%@ taglib prefix="e" uri="/WEB-INF/tld/smartstay.tld" %>
 <%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
 <t:layout title="Booking ${detail.booking.bookingCode}" active="admin-bookings">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb boutique-breadcrumb m-0">
-            <li class="breadcrumb-item">
-                <a href="${pageContext.request.contextPath}/admin/dashboard" class="boutique-breadcrumb-link">
-                    <i class="bi bi-house-door me-1"></i>Dashboard
-                </a>
-            </li>
-            <li class="breadcrumb-item">
-                <a href="${pageContext.request.contextPath}/admin/bookings" class="boutique-breadcrumb-link">
-                    Bookings
-                </a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">${e:esc(detail.booking.bookingCode)}</li>
-        </ol>
-    </nav>
-
-    <!-- Header & Action Toolbar -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body p-4">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                <div>
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <h1 class="h3 fw-bold mb-0">${e:esc(detail.booking.bookingCode)}</h1>
-                        <t:if test="${detail.booking.status == 'CONFIRMED'}">
-                            <span class="badge bg-success fs-6">CONFIRMED</span>
-                        </t:if>
-                        <t:if test="${detail.booking.status == 'PENDING_PAYMENT'}">
-                            <span class="badge bg-warning text-dark fs-6">PENDING_PAYMENT</span>
-                        </t:if>
-                        <t:if test="${detail.booking.status == 'CHECKED_IN'}">
-                            <t:if test="${detail.booking.earlyCheckin}">
-                                <span class="badge bg-primary fs-6 d-inline-flex align-items-center gap-1">
-                                    <i class="bi bi-clock-history"></i> CHECKED_IN &middot; Early Check-in (${detail.booking.earlyCheckinMinutes} mins)
-                                </span>
-                            </t:if>
-                            <t:if test="${!detail.booking.earlyCheckin}">
-                                <span class="badge bg-primary fs-6">CHECKED_IN</span>
-                            </t:if>
-                        </t:if>
-                        <t:if test="${detail.booking.status == 'CHECKED_OUT'}">
-                            <span class="badge bg-info text-dark fs-6">CHECKED_OUT</span>
-                        </t:if>
-                        <t:if test="${detail.booking.status == 'CANCELLED'}">
-                            <span class="badge bg-secondary fs-6">CANCELLED</span>
-                        </t:if>
-                        <t:if test="${detail.booking.status == 'EXPIRED'}">
-                            <span class="badge bg-danger fs-6">EXPIRED</span>
-                            <t:if test="${not empty detail.booking.expireReason}">
-                                <span class="badge bg-danger-subtle text-danger border border-danger">${e:esc(detail.booking.expireReason)}</span>
-                            </t:if>
-                        </t:if>
-                        <t:if test="${detail.booking.hasHeldSlots}">
-                            <span class="badge bg-warning text-dark border">Held slots</span>
-                        </t:if>
-                    </div>
-                    <p class="text-muted small mb-0">Created on ${e:datetime(detail.booking.createdAt)}</p>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="d-flex flex-wrap gap-2">
-                    <!-- Check-in -->
-                    <t:if test="${detail.booking.status == 'CONFIRMED'}">
-                        <!-- Allow Early Check-in Toggle -->
-                        <form action="${pageContext.request.contextPath}/admin/bookings/early-checkin" method="post" class="d-inline m-0">
-                            <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
-                            <input type="hidden" name="id" value="${detail.booking.bookingId}">
-                            <input type="hidden" name="allow" value="${detail.booking.allowEarlyCheckin ? 'false' : 'true'}">
-                            <button type="submit" class="btn ${detail.booking.allowEarlyCheckin ? 'btn-warning text-dark' : 'btn-outline-warning'} btn-sm fw-semibold">
-                                <i class="bi ${detail.booking.allowEarlyCheckin ? 'bi-toggle-on' : 'bi-toggle-off'} me-1"></i>
-                                ${detail.booking.allowEarlyCheckin ? 'Allow Early Check-in: ON' : 'Allow Early Check-in: OFF'}
-                            </button>
-                        </form>
-
-                        <form action="${pageContext.request.contextPath}/admin/bookings/checkin" method="post" class="d-inline m-0"
-                              onsubmit="return confirm('Confirm manual check-in for guest ${e:esc(detail.booking.guestName)}? Room will be marked OCCUPIED.');">
-                            <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
-                            <input type="hidden" name="id" value="${detail.booking.bookingId}">
-                            <button type="submit" class="btn btn-success btn-sm">Check-in</button>
-                        </form>
-                    </t:if>
-
-                    <!-- Check-out -->
-                    <t:if test="${detail.booking.status == 'CHECKED_IN'}">
-                        <form action="${pageContext.request.contextPath}/admin/bookings/checkout" method="post" class="d-inline m-0"
-                              onsubmit="return confirm('Confirm manual check-out for guest ${e:esc(detail.booking.guestName)}? Room will be marked NEEDS_CLEANING and active credentials expired.');">
-                            <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
-                            <input type="hidden" name="id" value="${detail.booking.bookingId}">
-                            <button type="submit" class="btn btn-info btn-sm text-white">Check-out</button>
-                        </form>
-                    </t:if>
-
-                    <!-- Edit Booking -->
-                    <t:if test="${detail.booking.status == 'PENDING_PAYMENT' or detail.booking.status == 'CONFIRMED'}">
-                        <a href="${pageContext.request.contextPath}/admin/bookings/edit?id=${detail.booking.bookingId}" class="btn btn-outline-primary btn-sm">
-                            ${detail.booking.status == 'CONFIRMED' ? 'Edit note' : 'Edit booking'}
-                        </a>
-                    </t:if>
-
-                    <!-- Cancel Booking -->
-                    <t:if test="${detail.booking.status == 'PENDING_PAYMENT' or detail.booking.status == 'CONFIRMED'}">
-                        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#cancelModal">
-                            Cancel booking
-                        </button>
-                    </t:if>
-
-                    <!-- Mark Refunded for Cancelled Booking -->
-                    <t:if test="${detail.booking.status == 'CANCELLED' && detail.booking.paymentStatus == 'REFUND_PENDING'}">
-                        <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#refundModal">
-                            <i class="bi bi-arrow-counterclockwise me-1"></i>Mark refunded
-                        </button>
-                    </t:if>
-
-                    <!-- No-show interventions -->
-                    <t:if test="${detail.booking.status == 'EXPIRED' and detail.booking.expireReason == 'NO_SHOW' and sessionScope.permissions.contains('NOSHOW_INTERVENE')}">
-                        <form action="${pageContext.request.contextPath}/admin/bookings/noshow" method="post" class="d-inline m-0"
-                              onsubmit="return confirm('Release all held slots for this no-show booking so others can book them?');">
-                            <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
-                            <input type="hidden" name="id" value="${detail.booking.bookingId}">
-                            <input type="hidden" name="action" value="release">
-                            <button type="submit" class="btn btn-warning btn-sm">Release slots</button>
-                        </form>
-
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#reinstateModal">
-                            Reinstate booking
-                        </button>
-                    </t:if>
-                </div>
+    <%-- V3: page anatomy as the other admin pages: one state badge in plain words, one primary
+         action for the current step, everything else in the "⋯" menu (forms, modals and ids unchanged). --%>
+    <a href="${pageContext.request.contextPath}/admin/bookings" class="ss-back-link"><i class="bi bi-chevron-left" aria-hidden="true"></i> Bookings</a>
+    <div class="ss-page-header">
+        <div>
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <h1 class="ss-page-header__title mb-0">${e:esc(detail.booking.bookingCode)}</h1>
+                <span class="ss-badge ss-badge--${e:adminState(detail.booking).tone}">${e:esc(e:adminState(detail.booking).label)}</span>
+                <t:if test="${detail.booking.status == 'CHECKED_IN' && detail.booking.earlyCheckin}">
+                    <span class="ss-bk__flag"><i class="bi bi-clock-history" aria-hidden="true"></i>Checked in ${detail.booking.earlyCheckinMinutes} min early</span>
+                </t:if>
+                <t:if test="${detail.booking.status == 'EXPIRED' && not empty detail.booking.expireReason}">
+                    <span class="ss-bk__flag">${e:esc(e:humanStatus(detail.booking.expireReason))}</span>
+                </t:if>
+                <t:if test="${detail.booking.hasHeldSlots}">
+                    <span class="ss-bk__flag" title="Slots are still blocked for other guests">Slots held</span>
+                </t:if>
             </div>
+            <p class="ss-page-header__subtitle">Created ${e:datetime(detail.booking.createdAt)} &middot; ${e:esc(detail.booking.guestName)}</p>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <%-- Primary action for the current step --%>
+            <t:if test="${detail.booking.status == 'CONFIRMED'}">
+                <form action="${pageContext.request.contextPath}/admin/bookings/checkin" method="post" class="d-inline m-0"
+                      onsubmit="return confirm('Check in ${e:esc(detail.booking.guestName)} now? The room becomes Occupied.');">
+                    <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                    <input type="hidden" name="id" value="${detail.booking.bookingId}">
+                    <button type="submit" class="btn btn-primary btn-sm">Check in</button>
+                </form>
+            </t:if>
+            <t:if test="${detail.booking.status == 'CHECKED_IN'}">
+                <form action="${pageContext.request.contextPath}/admin/bookings/checkout" method="post" class="d-inline m-0"
+                      onsubmit="return confirm('Check out ${e:esc(detail.booking.guestName)} now? The room needs cleaning and the door PIN stops working.');">
+                    <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                    <input type="hidden" name="id" value="${detail.booking.bookingId}">
+                    <button type="submit" class="btn btn-primary btn-sm">Check out</button>
+                </form>
+            </t:if>
+            <t:if test="${detail.booking.status == 'CANCELLED' && detail.booking.paymentStatus == 'REFUND_PENDING'}">
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#refundModal">Mark refunded</button>
+            </t:if>
+            <t:if test="${detail.booking.status == 'EXPIRED' and detail.booking.expireReason == 'NO_SHOW' and sessionScope.permissions.contains('NOSHOW_INTERVENE')}">
+                <form action="${pageContext.request.contextPath}/admin/bookings/noshow" method="post" class="d-inline m-0"
+                      onsubmit="return confirm('Release the held slots of this no-show so other guests can book them?');">
+                    <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                    <input type="hidden" name="id" value="${detail.booking.bookingId}">
+                    <input type="hidden" name="action" value="release">
+                    <button type="submit" class="btn btn-primary btn-sm">Release slots</button>
+                </form>
+            </t:if>
+
+            <%-- Secondary actions --%>
+            <t:if test="${detail.booking.status == 'PENDING_PAYMENT' or detail.booking.status == 'CONFIRMED' or (detail.booking.status == 'EXPIRED' and detail.booking.expireReason == 'NO_SHOW' and sessionScope.permissions.contains('NOSHOW_INTERVENE'))}">
+                <div class="dropdown ss-row-menu">
+                    <button class="btn-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More actions for this booking">
+                        <i class="bi bi-three-dots" aria-hidden="true"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <t:if test="${detail.booking.status == 'PENDING_PAYMENT' or detail.booking.status == 'CONFIRMED'}">
+                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/admin/bookings/edit?id=${detail.booking.bookingId}">${detail.booking.status == 'CONFIRMED' ? 'Edit note' : 'Edit booking'}</a></li>
+                        </t:if>
+                        <t:if test="${detail.booking.status == 'CONFIRMED'}">
+                            <li>
+                                <form action="${pageContext.request.contextPath}/admin/bookings/early-checkin" method="post" class="m-0">
+                                    <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                                    <input type="hidden" name="id" value="${detail.booking.bookingId}">
+                                    <input type="hidden" name="allow" value="${detail.booking.allowEarlyCheckin ? 'false' : 'true'}">
+                                    <button type="submit" class="dropdown-item">${detail.booking.allowEarlyCheckin ? 'Turn off early check-in' : 'Allow early check-in'}</button>
+                                </form>
+                            </li>
+                        </t:if>
+                        <t:if test="${detail.booking.status == 'EXPIRED' and detail.booking.expireReason == 'NO_SHOW' and sessionScope.permissions.contains('NOSHOW_INTERVENE')}">
+                            <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#reinstateModal">Reinstate booking</button></li>
+                        </t:if>
+                        <t:if test="${detail.booking.status == 'PENDING_PAYMENT' or detail.booking.status == 'CONFIRMED'}">
+                            <li><hr class="dropdown-divider"></li>
+                            <li><button type="button" class="dropdown-item dropdown-item--destructive" data-bs-toggle="modal" data-bs-target="#cancelModal">Cancel booking</button></li>
+                        </t:if>
+                    </ul>
+                </div>
+            </t:if>
         </div>
     </div>
 
@@ -165,9 +118,8 @@
                     <div class="mb-2">
                         <span class="text-muted small d-block">Room</span>
                         <strong>${e:esc(detail.room.displayTitle)}</strong>
-                        <span class="badge bg-light text-secondary border ms-1">Room ${e:esc(detail.room.roomNumber)}</span>
                         <span class="badge bg-light text-secondary border ms-1">Floor ${detail.room.floorNumber}</span>
-                        <span class="badge bg-light text-secondary border ms-1">Status: ${e:esc(detail.room.status)}</span>
+                        <span class="badge bg-light text-secondary border ms-1">${e:esc(e:humanStatus(detail.room.status))}</span>
                     </div>
                     <div class="mb-2">
                         <span class="text-muted small d-block">Stay Date</span>
@@ -213,6 +165,32 @@
                     <t:if test="${detail.booking.status == 'PENDING_PAYMENT' and not empty detail.booking.paymentDeadline}">
                         <div class="mb-2 small text-danger">
                             Payment deadline: ${e:datetime(detail.booking.paymentDeadline)}
+                        </div>
+                    </t:if>
+                    <%-- 48-hour cancellation policy (R3): deadline + refund outcome --%>
+                    <t:if test="${e:cancellationInfo(detail).known}">
+                        <div class="mb-2 small ss-cancel-admin">
+                            <div class="d-flex justify-content-between gap-2">
+                                <span class="text-muted">Free cancellation until</span>
+                                <span class="fw-semibold">${e:datetime(e:cancellationInfo(detail).deadline)}</span>
+                            </div>
+                            <div class="d-flex justify-content-between gap-2">
+                                <span class="text-muted">Refund outcome</span>
+                                <span class="fw-semibold">
+                                    <t:if test="${detail.booking.status == 'CANCELLED'}">
+                                        <t:if test="${detail.booking.paymentStatus == 'REFUND_PENDING'}">Full refund, pending</t:if>
+                                        <t:if test="${detail.booking.paymentStatus == 'REFUNDED'}">Refunded in full</t:if>
+                                        <t:if test="${detail.booking.paymentStatus == 'PAID'}">No refund (cancelled after the deadline)</t:if>
+                                        <t:if test="${detail.booking.paymentStatus != 'REFUND_PENDING' && detail.booking.paymentStatus != 'REFUNDED' && detail.booking.paymentStatus != 'PAID'}">Nothing was paid</t:if>
+                                    </t:if>
+                                    <t:if test="${detail.booking.status == 'PENDING_PAYMENT' || detail.booking.status == 'CONFIRMED'}">
+                                        <t:if test="${e:cancellationInfo(detail).outcome == 'FULL_REFUND'}">Guest cancels now: full refund</t:if>
+                                        <t:if test="${e:cancellationInfo(detail).outcome == 'NO_REFUND'}">Guest cancels now: no refund</t:if>
+                                        <t:if test="${e:cancellationInfo(detail).outcome == 'NOTHING_PAID'}">Not paid yet</t:if>
+                                    </t:if>
+                                    <t:if test="${detail.booking.status != 'CANCELLED' && detail.booking.status != 'PENDING_PAYMENT' && detail.booking.status != 'CONFIRMED'}">Not cancellable</t:if>
+                                </span>
+                            </div>
                         </div>
                     </t:if>
                     <t:if test="${not empty detail.booking.createdByName}">
@@ -262,10 +240,10 @@
                             <td>${e:money(slot.listPrice)}</td>
                             <td class="pe-3">
                                 <t:if test="${slot.holdStatus == 'HELD'}">
-                                    <span class="badge bg-warning text-dark">HELD</span>
+                                    <span class="ss-badge ss-badge--warning">Held</span>
                                 </t:if>
                                 <t:if test="${slot.holdStatus == 'RELEASED'}">
-                                    <span class="badge bg-secondary">RELEASED</span>
+                                    <span class="ss-badge ss-badge--neutral">Released</span>
                                 </t:if>
                             </td>
                         </tr>
@@ -302,29 +280,29 @@
                     <t:forEach items="${detail.payments}" var="pm">
                         <tr>
                             <td class="ps-3 fw-semibold">${pm.orderCode}</td>
-                            <td>${e:esc(pm.provider)}</td>
+                            <td>${pm.provider == 'MOCK' ? 'Sandbox' : e:esc(pm.provider)}</td>
                             <td>${e:money(pm.amount)}</td>
                             <td>
                                 <t:if test="${pm.status == 'PAID'}">
-                                    <span class="badge bg-success">PAID</span>
+                                    <span class="ss-badge ss-badge--success">Paid</span>
                                 </t:if>
                                 <t:if test="${pm.status == 'PENDING'}">
-                                    <span class="badge bg-warning text-dark">PENDING</span>
+                                    <span class="ss-badge ss-badge--warning">Waiting</span>
                                 </t:if>
                                 <t:if test="${pm.status == 'REVIEW_REQUIRED'}">
-                                    <span class="badge bg-danger">REVIEW_REQUIRED</span>
+                                    <span class="ss-badge ss-badge--danger">Needs review</span>
                                 </t:if>
                                 <t:if test="${pm.status == 'REFUND_PENDING'}">
-                                    <span class="badge bg-info text-dark">REFUND_PENDING</span>
+                                    <span class="ss-badge ss-badge--warning">Refund pending</span>
                                 </t:if>
                                 <t:if test="${pm.status == 'REFUNDED'}">
-                                    <span class="badge bg-secondary">REFUNDED</span>
+                                    <span class="ss-badge ss-badge--neutral">Refunded</span>
                                 </t:if>
                                 <t:if test="${pm.status == 'FAILED'}">
-                                    <span class="badge bg-danger">FAILED</span>
+                                    <span class="ss-badge ss-badge--danger">Failed</span>
                                 </t:if>
                                 <t:if test="${pm.status == 'EXPIRED'}">
-                                    <span class="badge bg-secondary">EXPIRED</span>
+                                    <span class="ss-badge ss-badge--neutral">Expired</span>
                                 </t:if>
                             </td>
                             <td class="small text-muted">${e:datetime(pm.createdAt)}</td>
@@ -373,20 +351,20 @@
                     <t:forEach items="${detail.credentials}" var="cr">
                         <tr>
                             <td class="ps-3 text-muted">#${cr.credentialId}</td>
-                            <td>${e:esc(cr.credentialType)}</td>
+                            <td>${e:esc(e:humanStatus(cr.credentialType))}</td>
                             <td><code>${e:esc(cr.deviceId)}</code></td>
                             <td>
                                 <t:if test="${cr.status == 'ACTIVE'}">
-                                    <span class="badge bg-success">ACTIVE</span>
+                                    <span class="ss-badge ss-badge--success">Active</span>
                                 </t:if>
                                 <t:if test="${cr.status == 'PENDING'}">
-                                    <span class="badge bg-warning text-dark">PENDING</span>
+                                    <span class="ss-badge ss-badge--warning">Waiting</span>
                                 </t:if>
                                 <t:if test="${cr.status == 'REVOKED'}">
-                                    <span class="badge bg-danger">REVOKED</span>
+                                    <span class="ss-badge ss-badge--danger">Revoked</span>
                                 </t:if>
                                 <t:if test="${cr.status == 'EXPIRED'}">
-                                    <span class="badge bg-secondary">EXPIRED</span>
+                                    <span class="ss-badge ss-badge--neutral">Expired</span>
                                 </t:if>
                             </td>
                             <td class="small text-muted">${e:datetime(cr.validFrom)}</td>
@@ -443,10 +421,10 @@
                             <td class="small text-muted font-monospace">${e:esc(al.requestId)}</td>
                             <td>
                                 <t:if test="${al.result == 'GRANTED'}">
-                                    <span class="badge bg-success">GRANTED</span>
+                                    <span class="ss-badge ss-badge--success">Allowed</span>
                                 </t:if>
                                 <t:if test="${al.result != 'GRANTED'}">
-                                    <span class="badge bg-danger">${e:esc(al.result)}</span>
+                                    <span class="ss-badge ss-badge--danger">${e:esc(e:humanStatus(al.result))}</span>
                                 </t:if>
                             </td>
                             <td class="pe-3 small text-muted">${e:esc(al.reasonCode)}</td>
@@ -476,11 +454,11 @@
                         <t:forEach items="${detail.alertLogs}" var="alt">
                             <tr>
                                 <td class="ps-3 small">${e:datetime(alt.createdAt)}</td>
-                                <td><code>${e:esc(alt.alertType)}</code></td>
+                                <td>${e:esc(e:alertTitle(alt.alertType))} <code class="small text-muted">${e:esc(alt.alertType)}</code></td>
                                 <td>
-                                    <span class="badge badge-sev-${alt.severity == 'CRITICAL' ? 'critical' : (alt.severity == 'HIGH' ? 'high' : (alt.severity == 'MEDIUM' ? 'medium' : 'low'))}">${e:esc(alt.severity)}</span>
+                                    <span class="badge badge-sev-${alt.severity == 'CRITICAL' ? 'critical' : (alt.severity == 'HIGH' ? 'high' : (alt.severity == 'MEDIUM' ? 'medium' : 'low'))}">${e:esc(e:humanStatus(alt.severity))}</span>
                                 </td>
-                                <td><span class="badge ${alt.status == 'NEW' ? 'badge-status-danger' : (alt.status == 'ACKNOWLEDGED' ? 'badge-status-warning' : 'badge-status-success')}">${e:esc(alt.status)}</span></td>
+                                <td><span class="badge ${alt.status == 'NEW' ? 'badge-status-danger' : (alt.status == 'ACKNOWLEDGED' ? 'badge-status-warning' : 'badge-status-success')}">${e:esc(e:humanStatus(alt.status))}</span></td>
                                 <td class="pe-3 small">${e:esc(alt.message)}</td>
                             </tr>
                         </t:forEach>
@@ -583,4 +561,13 @@
             </div>
         </div>
     </div>
+    <script>
+        // R7: the bookings list "Cancel booking" menu item opens this page with ?cancel=1
+        document.addEventListener('DOMContentLoaded', function () {
+            if (/[?&]cancel=1(&|$)/.test(window.location.search)) {
+                var el = document.getElementById('cancelModal');
+                if (el && window.bootstrap) { new bootstrap.Modal(el).show(); }
+            }
+        });
+    </script>
 </t:layout>

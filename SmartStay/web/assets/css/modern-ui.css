@@ -608,6 +608,7 @@
     border-radius: 9999px;
     border: 1px solid transparent;
     white-space: nowrap;
+    text-transform: none;
 }
 
 /* Severity modifiers */
@@ -789,7 +790,6 @@
 .ss-slot--available:hover {
     background: var(--color-cream, #FAF5EC);
     border-color: var(--color-latte, #D9B991);
-    transform: translateY(-1px);
 }
 
 .ss-slot--selected {
@@ -1066,3 +1066,4139 @@
     flex-direction: column;
     gap: 0.5rem;
 }
+
+/* ==========================================================================
+   18. DEMO TOOLS (Task R2-B3): ss-demo-banner, ss-demo-tab, ss-demo-drawer
+   Rendered by layout.tag only when context-param demo.mode is on.
+   - ss-demo-banner: in-flow strip under the navbar while the virtual clock is
+     shifted (an abnormal state, so it uses the warning triad).
+   - ss-demo-tab: right-edge "DEMO" handle that opens the drawer (closed by default).
+   - ss-demo-drawer: 320px side panel from 768px (the page is pushed, never covered);
+     bottom sheet below 768px, docked ABOVE any fixed bottom bar (offset set by demo.js).
+   - ss-demo-steps: the stay timeline (the 4 jump targets in order, plus a "now" marker).
+   Motion lives in animations.css (section 4).
+   ========================================================================== */
+:root {
+    --ss-demo-w: 320px;
+    --ss-demo-bottom: 0px;   /* height of fixed bottom bars, set by demo.js */
+    --ss-demo-sheet-h: 0px;  /* open sheet height on mobile, set by demo.js */
+}
+
+.ss-demo-banner {
+    color: var(--status-warning-text);
+    background-color: var(--status-warning-bg);
+    border-bottom: 1px solid var(--status-warning-border);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+.ss-demo-banner__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.ss-demo-banner__icon {
+    color: var(--status-warning-text);
+}
+
+.ss-demo-banner__time {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-demo-banner__reset {
+    min-height: 32px;
+    padding: 0.25rem 0;
+    border: 0;
+    background: transparent;
+    color: var(--status-warning-text);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.ss-demo-banner__reset:hover {
+    color: var(--color-espresso);
+}
+
+/* --- Tab ------------------------------------------------------------------ */
+.ss-demo-tab {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1045;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    min-height: 76px;
+    padding: 0.625rem 0;
+    border: 1px solid var(--color-cocoa);
+    border-right: 0;
+    border-radius: var(--ss-r-sm) 0 0 var(--ss-r-sm);
+    background-color: var(--color-espresso);
+    color: var(--color-text-light);
+    box-shadow: var(--ss-shadow-base);
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    writing-mode: vertical-rl;
+    cursor: pointer;
+}
+
+.ss-demo-tab:hover {
+    color: var(--color-latte);
+}
+
+.ss-demo-tab[aria-expanded="true"] {
+    display: none;
+}
+
+/* --- Drawer --------------------------------------------------------------- */
+.ss-demo-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1045;
+    width: var(--ss-demo-w);
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-milk);
+    border-left: 1px solid rgba(154, 91, 46, 0.18);
+    box-shadow: var(--ss-shadow-drawer);
+    color: var(--color-text-dark);
+    font-family: var(--font-sans);
+    visibility: hidden;
+}
+
+.ss-demo-drawer--open {
+    visibility: visible;
+}
+
+.ss-demo-drawer__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0.75rem 0.75rem 1.25rem;
+    background-color: var(--color-cream);
+    border-bottom: 1px solid var(--color-sand);
+}
+
+.ss-demo-drawer__title {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--color-text-dark);
+}
+
+.ss-demo-drawer__badge {
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--ss-r-pill);
+    background-color: var(--color-espresso);
+    color: var(--color-text-light);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+}
+
+.ss-demo-drawer__close {
+    margin-left: auto;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: var(--ss-r-sm);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ss-demo-drawer__close:hover {
+    background-color: var(--color-sand);
+    color: var(--color-text-dark);
+}
+
+.ss-demo-drawer__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.ss-demo-drawer__section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.ss-demo-drawer__heading {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-demo-drawer__hint {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--color-text-muted);
+}
+
+/* Clock block: the simulated time is the main reading of the drawer */
+.ss-demo-clock {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.ss-demo-clock__now {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-dark);
+}
+
+.ss-demo-clock__meta {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-demo-clock--shifted .ss-demo-clock__now {
+    color: var(--status-warning-text);
+}
+
+.ss-demo-drawer__select {
+    min-height: 44px;
+    border-radius: var(--ss-r-sm);
+    border-color: var(--color-sand);
+    background-color: var(--color-milk);
+    color: var(--color-text-dark);
+    font-size: 0.875rem;
+}
+
+.ss-demo-drawer__select:focus {
+    border-color: var(--color-caramel);
+    box-shadow: 0 0 0 3px rgba(154, 91, 46, 0.2);
+}
+
+.ss-demo-btn {
+    min-height: 44px;
+    padding: 0.5rem 0.875rem;
+    border-radius: var(--ss-r-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.ss-demo-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.ss-demo-btn--primary {
+    border: 1px solid var(--color-caramel);
+    background-color: var(--color-caramel);
+    color: var(--color-milk);
+}
+
+.ss-demo-btn--primary:hover:not(:disabled) {
+    border-color: var(--color-cocoa);
+    background-color: var(--color-cocoa);
+}
+
+.ss-demo-btn--quiet {
+    border: 1px solid var(--color-sand);
+    background-color: var(--color-milk);
+    color: var(--color-text-dark);
+}
+
+.ss-demo-btn--quiet:hover:not(:disabled) {
+    background-color: var(--color-sand);
+}
+
+.ss-demo-btn--success {
+    border: 1px solid var(--status-success-border);
+    background-color: var(--status-success-bg);
+    color: var(--status-success-text);
+}
+
+.ss-demo-btn--danger {
+    border: 1px solid var(--status-danger-border);
+    background-color: var(--status-danger-bg);
+    color: var(--status-danger-text);
+}
+
+/* --- Stay timeline (the 4 jump targets are a real sequence) --------------- */
+.ss-demo-steps {
+    position: relative;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ss-demo-steps::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 14px;
+    bottom: 14px;
+    border-left: 1px solid var(--color-latte);
+}
+
+.ss-demo-steps__item {
+    position: relative;
+    padding-left: 1.75rem;
+}
+
+.ss-demo-steps__item::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    width: 11px;
+    height: 11px;
+    margin-top: -5.5px;
+    border: 1px solid var(--color-caramel);
+    border-radius: 50%;
+    background-color: var(--color-milk);
+}
+
+.ss-demo-steps__btn {
+    width: 100%;
+    min-height: 52px;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid transparent;
+    border-radius: var(--ss-r-sm);
+    background: transparent;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0.0625rem;
+    color: var(--color-text-dark);
+    cursor: pointer;
+}
+
+.ss-demo-steps__btn:hover:not(:disabled) {
+    background-color: var(--color-cream);
+    border-color: var(--color-sand);
+}
+
+.ss-demo-steps__label {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.ss-demo-steps__time {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-demo-steps__btn:disabled {
+    cursor: not-allowed;
+}
+
+.ss-demo-steps__btn:disabled .ss-demo-steps__label {
+    color: var(--color-text-muted);
+}
+
+.ss-demo-steps__item--passed::before {
+    border-color: var(--color-latte);
+    background-color: var(--color-latte);
+}
+
+.ss-demo-steps__item--selected .ss-demo-steps__btn {
+    background-color: var(--color-cream);
+    border-color: var(--color-caramel);
+}
+
+.ss-demo-steps__item--selected::before {
+    background-color: var(--color-caramel);
+}
+
+/* "Now" marker between the passed and the upcoming steps */
+.ss-demo-steps__now {
+    position: relative;
+    padding: 0.25rem 0 0.25rem 1.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-demo-steps__now::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 15px;
+    margin-top: -1px;
+    border-top: 2px solid var(--color-espresso);
+}
+
+/* Inline confirmation shown before a jump */
+.ss-demo-confirm {
+    padding: 0.875rem;
+    border: 1px solid rgba(154, 91, 46, 0.24);
+    border-radius: var(--ss-r-md);
+    background-color: var(--color-cream);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--color-text-dark);
+}
+
+.ss-demo-confirm[hidden] {
+    display: none;
+}
+
+.ss-demo-confirm__title {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.ss-demo-confirm__text {
+    margin: 0;
+    color: var(--color-text-muted);
+}
+
+.ss-demo-confirm__list {
+    margin: 0;
+    padding-left: 1.125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-demo-confirm__actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.ss-demo-confirm__actions .ss-demo-btn {
+    flex: 1;
+}
+
+.ss-demo-status {
+    min-height: 1.25rem;
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--color-text-muted);
+}
+
+.ss-demo-status--error {
+    color: var(--status-danger-text);
+}
+
+.ss-demo-status--ok {
+    color: var(--status-success-text);
+}
+
+.ss-demo-tab:focus-visible,
+.ss-demo-drawer :focus-visible,
+.ss-demo-banner__reset:focus-visible {
+    outline: 2px solid var(--color-caramel);
+    outline-offset: 2px;
+}
+
+.ss-demo-spacer {
+    display: none;
+}
+
+/* From 768px: push the page instead of covering it */
+@media (min-width: 768px) {
+    body.ss-demo-open {
+        padding-right: var(--ss-demo-w);
+    }
+
+    /* Fixed full-width bottom bars keep their right-hand buttons visible */
+    body.ss-demo-open .mobile-booking-bar,
+    body.ss-demo-open .booking-mobile-paybar,
+    body.ss-demo-open .ss-bookbar {
+        right: var(--ss-demo-w);
+    }
+}
+
+/* Below 768px: bottom sheet docked above fixed bottom bars */
+@media (max-width: 767.98px) {
+    .ss-demo-tab {
+        top: 38%;
+        width: 24px;
+        min-height: 64px;
+    }
+
+    .ss-demo-drawer {
+        top: auto;
+        bottom: var(--ss-demo-bottom);
+        left: 0;
+        width: 100%;
+        max-height: min(70vh, calc(100vh - var(--ss-demo-bottom) - 56px));
+        border-left: 0;
+        border-top: 1px solid rgba(154, 91, 46, 0.18);
+        border-radius: var(--ss-r-lg) var(--ss-r-lg) 0 0;
+        box-shadow: var(--ss-shadow-feature);
+    }
+
+    .ss-demo-drawer__header {
+        border-radius: var(--ss-r-lg) var(--ss-r-lg) 0 0;
+    }
+
+    /* Lets the page scroll its last buttons above the open sheet */
+    body.ss-demo-open .ss-demo-spacer {
+        display: block;
+        height: var(--ss-demo-sheet-h);
+    }
+}
+
+/* ==========================================================================
+   19. CANCELLATION POLICY LINE (Task R3): ss-cancel-line, ss-cancel-outcome
+   One quiet line in booking summaries: "Free cancellation until ..." (normal state)
+   or a warning "Non-refundable" badge when check-in is less than 48 h away.
+   Rendered by t:cancelLine (server) and cancel-policy.js (room detail selection).
+   ========================================================================== */
+.ss-cancel-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem 0.5rem;
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--color-text-muted);
+}
+
+.ss-cancel-line[hidden] {
+    display: none;
+}
+
+.ss-cancel-line__icon {
+    color: var(--status-success-text);
+}
+
+.ss-cancel-line__time {
+    font-weight: 600;
+    color: var(--color-text-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-cancel-line--locked {
+    color: var(--color-text-dark);
+}
+
+.ss-cancel-outcome {
+    font-size: 0.875rem;
+    color: var(--color-text-dark);
+}
+
+.ss-cancel-outcome--refund {
+    color: var(--status-success-text);
+}
+
+.ss-cancel-outcome--none {
+    font-weight: 600;
+    color: var(--status-warning-text);
+}
+
+/* ==========================================================================
+   20. ROOMS PAGE FILTERS (Task R4): ss-rooms-filter, ss-rooms-results, ss-rooms-card
+   Auto-applied filters (room-search.js), status line + removable chips, unavailable
+   rooms dimmed and last with a plain-words reason.
+   ========================================================================== */
+.ss-rooms-filter__hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--color-text-muted);
+}
+
+.ss-rooms-filter__hint--warn {
+    color: var(--status-warning-text);
+    font-weight: 600;
+}
+
+.ss-rooms-filter__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-sand);
+}
+
+.ss-rooms-filter__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 150px;
+}
+
+.ss-rooms-filter__label {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-rooms-filter__select {
+    min-height: 40px;
+    border-radius: var(--ss-r-sm);
+    border-color: var(--color-latte);
+    background-color: var(--color-milk);
+    color: var(--color-text-dark);
+}
+
+.ss-rooms-filter__select:focus {
+    border-color: var(--color-caramel);
+    box-shadow: 0 0 0 3px rgba(154, 91, 46, 0.2);
+}
+
+.ss-rooms-filter__switch {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 40px;
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--color-text-dark);
+}
+
+.ss-rooms-filter__switch .form-check-input:checked {
+    background-color: var(--color-caramel);
+    border-color: var(--color-caramel);
+}
+
+.ss-rooms-filter__switch .form-check-input:focus {
+    border-color: var(--color-caramel);
+    box-shadow: 0 0 0 3px rgba(154, 91, 46, 0.2);
+}
+
+/* Slot checkboxes: visually hidden but still focusable (app.css used display:none) */
+.slot-picker-grid .slot-pill-check {
+    position: relative;
+}
+
+.slot-picker-grid .slot-pill-check input[type="checkbox"] {
+    display: block;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Keyboard focus on the hidden slot checkboxes shows on the pill */
+.slot-pill-check input[type="checkbox"]:focus-visible + .slot-pill-btn {
+    outline: 2px solid var(--color-caramel);
+    outline-offset: 2px;
+}
+
+.ss-rooms-results {
+    transition: opacity var(--ss-dur-fast, 160ms) ease;
+}
+
+.ss-rooms-results--loading {
+    opacity: 0.55;
+}
+
+.ss-rooms-results__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.ss-rooms-results__status {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-rooms-results__chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.ss-rooms-chip {
+    cursor: default;
+}
+
+.ss-rooms-chip__remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    color: inherit;
+    text-decoration: none;
+}
+
+.ss-rooms-chip__remove:hover {
+    color: inherit;
+    background-color: rgba(255, 253, 249, 0.2);
+}
+
+.ss-rooms-chip__remove:focus-visible,
+.ss-rooms-results__clear:focus-visible {
+    outline: 2px solid var(--color-espresso);
+    outline-offset: 2px;
+}
+
+.ss-rooms-results__clear {
+    padding: 0.25rem 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.ss-rooms-results__clear:hover {
+    color: var(--color-espresso);
+}
+
+.ss-rooms-card__times {
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-rooms-card__price {
+    font-family: var(--font-sans);
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-espresso);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-rooms-card__price-meta {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Unavailable rooms stay visible but quiet */
+.ss-rooms-card--unavailable .boutique-card-img {
+    filter: grayscale(0.6);
+    opacity: 0.7;
+}
+
+.ss-rooms-card--unavailable .boutique-room-title,
+.ss-rooms-card--unavailable .ss-rooms-card__price,
+.ss-rooms-card--unavailable .rate-value {
+    color: var(--color-text-muted);
+}
+
+.ss-rooms-card__reason {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-rooms-card__cta-off {
+    pointer-events: none;
+}
+
+.ss-rooms-empty {
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    margin-bottom: 1.5rem;
+}
+
+/* ==========================================================================
+   21. GUEST POLISH (Task R5)
+   ss-bookbar-m   : room-detail mobile booking bar (<992px), restyled on the SAME DOM
+                    slot-matrix.js writes into; empty state toggled by booking-bar.js.
+   ss-week-nav    : one week control "‹ 25 – 31 Oct ›" + calendar icon (Flatpickr).
+   ss-paybar-m    : checkout mobile bar (<768px) = amount + countdown + Check payment status.
+   ss-reservation : checkout booking summary (t:reservationSummary).
+   ss-bookings    : My bookings table (desktop) + cards (mobile).
+   ========================================================================== */
+
+/* --- Mobile booking bar ---------------------------------------------------- */
+@media (max-width: 991.98px) {
+    /* Visible even with nothing selected (slot-matrix.js adds d-none when empty) */
+    #mobile-booking-bar.ss-bookbar-m.d-none {
+        display: block !important;
+    }
+
+    #mobile-booking-bar.ss-bookbar-m {
+        min-height: calc(76px + env(safe-area-inset-bottom, 0px));
+        padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+        background-color: var(--color-cocoa);
+        color: var(--color-text-light);
+        border-top: 1px solid var(--color-latte);
+        border-radius: var(--ss-r-lg) var(--ss-r-lg) 0 0;
+        box-shadow: 0 -8px 24px -6px rgba(43, 27, 18, 0.28);
+    }
+
+    html body.ss-has-bookbar {
+        padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+}
+
+.ss-bookbar-m__inner {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+        "row row"
+        "price cta";
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.ss-bookbar-m__left {
+    display: contents;
+}
+
+.ss-bookbar-m__row {
+    grid-area: row;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.ss-bookbar-m__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border: 1px solid var(--color-latte);
+    border-radius: var(--ss-r-pill);
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-light);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-bookbar-m__discount {
+    color: var(--color-latte);
+}
+
+.ss-bookbar-m__discount::before {
+    content: "\00B7";
+    margin-right: 0.375rem;
+    color: var(--color-text-light-sub);
+}
+
+#mobile-booking-bar .ss-bookbar-m__details {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 44px;
+    margin: -0.375rem -0.5rem -0.375rem 0;
+    padding: 0 0.5rem;
+    border: 0;
+    background: transparent;
+    color: var(--color-text-light);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.ss-bookbar-m__price {
+    grid-area: price;
+    font-family: var(--font-sans);
+    font-size: 1.375rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-text-light);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-bookbar-m__right {
+    grid-area: cta;
+}
+
+#mobile-booking-bar .ss-bookbar-m__cta {
+    min-height: 52px;
+    min-width: 140px;
+    padding: 0.5rem 1.25rem;
+    border: 0;
+    border-radius: var(--ss-r-pill);
+    background: var(--color-latte) !important;
+    color: var(--color-espresso) !important;
+    font-size: 1rem;
+    font-weight: 600;
+    box-shadow: none;
+}
+
+#mobile-booking-bar .ss-bookbar-m__cta:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+#mobile-booking-bar .ss-bookbar-m__cta:focus-visible,
+#mobile-booking-bar .ss-bookbar-m__details:focus-visible {
+    outline: 2px solid var(--color-latte);
+    outline-offset: 2px;
+}
+
+.ss-bookbar-m__empty {
+    display: none;
+    grid-area: price;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-light-sub);
+}
+
+.ss-bookbar-m--empty .ss-bookbar-m__row,
+.ss-bookbar-m--empty .ss-bookbar-m__price {
+    display: none;
+}
+
+.ss-bookbar-m--empty .ss-bookbar-m__empty {
+    display: block;
+}
+
+/* "Today" shows once on the mobile day pills (the label, not label + badge) */
+.mobile-day-pill .badge-today-dot {
+    display: none;
+}
+
+/* --- One week control ------------------------------------------------------ */
+.ss-week-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border: 1px solid var(--color-latte);
+    border-radius: var(--ss-r-pill);
+    background-color: var(--color-milk);
+}
+
+.ss-week-nav__arrow,
+.ss-week-nav__pick-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-text-dark);
+    text-decoration: none;
+}
+
+.ss-week-nav__arrow:hover,
+.ss-week-nav__pick-btn:hover {
+    background-color: var(--color-sand);
+    color: var(--color-espresso);
+}
+
+.ss-week-nav__arrow--off {
+    opacity: 0.35;
+}
+
+.ss-week-nav__label {
+    min-width: 128px;
+    padding: 0 0.25rem;
+    text-align: center;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-week-nav__pick {
+    position: relative;
+    display: inline-flex;
+    border-left: 1px solid var(--color-sand);
+    padding-left: 0.25rem;
+}
+
+.ss-week-nav__arrow:focus-visible,
+.ss-week-nav__pick-btn:focus-visible {
+    outline: 2px solid var(--color-caramel);
+    outline-offset: 2px;
+}
+
+/* Hidden date input + Flatpickr alt input; the calendar opens under the icon */
+.ss-week-nav__date {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* --- Checkout mobile pay bar ---------------------------------------------- */
+@media (max-width: 767.98px) {
+    .mobile-checkout-sticky.ss-paybar-m {
+        position: fixed;
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1030;
+        margin: 0;
+        padding: 0.625rem 1rem calc(52px + 1.5rem + env(safe-area-inset-bottom, 0px));
+        background-color: var(--color-milk);
+        border-top: 1px solid var(--color-sand);
+        border-bottom: 0;
+        box-shadow: 0 -8px 24px -6px rgba(43, 27, 18, 0.16);
+    }
+
+    #btnCheckStatus.ss-paybar-m__cta {
+        position: fixed;
+        left: 1rem;
+        right: 1rem;
+        bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+        z-index: 1031;
+        width: auto !important;
+        min-height: 52px !important;
+        font-size: 1rem !important;
+    }
+
+    #btnCancelBooking.ss-paybar-m__cancel {
+        border: 0;
+        background: transparent;
+        color: var(--color-text-dark);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    .ss-checkout {
+        margin-bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* Payment done: the success view replaces the checkout, the bar goes away */
+    .ss-checkout:has(#simulationSuccessView:not(.d-none)) .ss-paybar-m {
+        display: none;
+    }
+}
+
+/* --- Checkout booking summary --------------------------------------------- */
+.ss-reservation {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-family: var(--font-sans);
+    color: var(--color-text-dark);
+}
+
+.ss-reservation__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.ss-reservation__room {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.ss-reservation__room-code,
+.ss-reservation__code {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-reservation__code {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-reservation__when {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-reservation__slots {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+.ss-reservation__receipt {
+    margin: 0.25rem 0 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-sand);
+}
+
+.ss-reservation__line {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-reservation__line dt,
+.ss-reservation__line dd {
+    margin: 0;
+    font-weight: 400;
+}
+
+.ss-reservation__line--total {
+    margin-top: 0.25rem;
+    font-size: 1rem;
+    color: var(--color-text-dark);
+}
+
+.ss-reservation__line--total dt,
+.ss-reservation__line--total dd {
+    font-weight: 600;
+}
+
+/* --- My bookings ------------------------------------------------------------ */
+.ss-bookings-table .table {
+    --bs-table-border-color: var(--color-sand);
+    border-color: var(--color-sand);
+}
+
+/* No stray dark border under the last row */
+.ss-bookings-table .table > :last-child > tr:last-child > * {
+    border-bottom: 0;
+}
+
+.ss-bookings__code {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+    text-decoration: none;
+}
+
+.ss-bookings__code:hover {
+    color: var(--color-caramel);
+    text-decoration: underline;
+}
+
+.ss-bookings__muted {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-bookings__date {
+    font-weight: 600;
+    color: var(--color-text-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-bookings__slot {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-bookings__total {
+    font-weight: 600;
+    color: var(--color-text-dark);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ss-bookings__action {
+    min-height: 36px;
+    white-space: nowrap;
+}
+
+.ss-bookings-cards {
+    list-style: none;
+    margin: 0 0 1.5rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ss-bookings-card {
+    padding: 1rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    box-shadow: var(--ss-shadow-micro);
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.ss-bookings-card__top,
+.ss-bookings-card__bottom {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.ss-bookings-card__bottom {
+    align-items: center;
+}
+
+.ss-bookings-card__room {
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-bookings-card__when {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.ss-bookings-card .ss-bookings__slot {
+    white-space: normal;
+}
+
+.ss-bookings-card .ss-bookings__action {
+    min-height: 44px;
+}
+
+.ss-bookings-empty {
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    margin-bottom: 1.5rem;
+}
+
+/* ==========================================================================
+   22. ADMIN DASHBOARD (Task R6): ss-dash, ss-kpi, ss-attn, ss-room-tile
+   Operational density: normal states are quiet (neutral), only problems are coloured.
+   ========================================================================== */
+.ss-dash__header {
+    margin-bottom: 1.25rem;
+}
+
+.ss-dash {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.ss-dash__kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.ss-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.875rem 1rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    box-shadow: var(--ss-shadow-micro);
+    color: var(--color-text-dark);
+    text-decoration: none;
+    font-family: var(--font-sans);
+}
+
+.ss-kpi:hover {
+    border-color: var(--color-latte);
+    color: var(--color-text-dark);
+}
+
+.ss-kpi:focus-visible {
+    outline: 2px solid var(--color-caramel);
+    outline-offset: 2px;
+}
+
+.ss-kpi__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.ss-kpi__value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-kpi__of {
+    margin-left: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--color-text-muted);
+}
+
+.ss-kpi__split {
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-kpi--warn {
+    border-left: 3px solid var(--status-warning);
+}
+
+.ss-kpi--warn .ss-kpi__split {
+    color: var(--status-warning-text);
+}
+
+.ss-kpi--danger {
+    border-left: 3px solid var(--status-danger);
+}
+
+.ss-kpi--danger .ss-kpi__split {
+    color: var(--status-danger-text);
+    font-weight: 600;
+}
+
+.ss-dash__main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.ss-dash__card {
+    padding: 1rem 1.125rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    box-shadow: var(--ss-shadow-base);
+}
+
+.ss-dash__card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.ss-dash__card-title {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-dash__card-meta {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-dash__card-link,
+.ss-dash__strip-link {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.ss-dash__card-link:hover,
+.ss-dash__strip-link:hover {
+    color: var(--color-caramel);
+}
+
+.ss-dash__clear {
+    padding: 1.5rem 1rem;
+}
+
+/* Needs attention list: severity bar on the left, one action on the right */
+.ss-attn {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.ss-attn__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.625rem 0 0.625rem 0.75rem;
+    border-left: 3px solid var(--sev-low-border);
+    border-bottom: 1px solid var(--color-sand);
+}
+
+.ss-attn__item:last-child {
+    border-bottom: 0;
+}
+
+.ss-attn__item--critical {
+    border-left-color: var(--sev-critical);
+}
+
+.ss-attn__item--high {
+    border-left-color: var(--sev-high);
+}
+
+.ss-attn__item--medium {
+    border-left-color: var(--sev-medium);
+}
+
+.ss-attn__text {
+    min-width: 0;
+}
+
+.ss-attn__title {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-attn__detail {
+    margin: 0.125rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ss-attn__action {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Room tiles: 2 x 3; problem tiles get a coloured edge */
+.ss-room-tiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.ss-room-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--color-sand);
+    border-radius: var(--ss-r-sm);
+    background-color: var(--color-milk);
+    color: var(--color-text-dark);
+    text-decoration: none;
+    font-size: 0.8125rem;
+}
+
+.ss-room-tile:hover {
+    border-color: var(--color-latte);
+    background-color: var(--color-cream);
+    color: var(--color-text-dark);
+}
+
+.ss-room-tile:focus-visible {
+    outline: 2px solid var(--color-caramel);
+    outline-offset: 2px;
+}
+
+.ss-room-tile__code {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.ss-room-tile__name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ss-room-tile__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--color-text-muted);
+}
+
+.ss-room-tile__next {
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-dark);
+}
+
+.ss-room-tile--warn {
+    border-left: 3px solid var(--status-warning);
+}
+
+.ss-room-tile--warn .ss-room-tile__status {
+    color: var(--status-warning-text);
+    font-weight: 600;
+}
+
+.ss-room-tile--danger {
+    border-left: 3px solid var(--status-danger);
+}
+
+.ss-room-tile--danger .ss-room-tile__status {
+    color: var(--status-danger-text);
+    font-weight: 600;
+}
+
+/* Strips: one line each */
+.ss-dash__strips {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.ss-dash__strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+    margin: 0;
+    padding: 0.625rem 1rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    font-size: 0.875rem;
+    color: var(--color-text-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-dash__strip--warn {
+    border-left: 3px solid var(--status-warning);
+}
+
+.ss-dash__strip-icon {
+    color: var(--color-text-muted);
+}
+
+.ss-dash__strip-label {
+    font-weight: 600;
+}
+
+.ss-dash__strip-num {
+    font-weight: 600;
+}
+
+.ss-dash__strip-link {
+    margin-left: auto;
+}
+
+.ss-dash__change {
+    padding: 0 0.375rem;
+    border-radius: var(--ss-r-pill);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.ss-dash__change--up {
+    color: var(--status-success-text);
+    background-color: var(--status-success-bg);
+    border: 1px solid var(--status-success-border);
+}
+
+.ss-dash__change--down {
+    color: var(--status-danger-text);
+    background-color: var(--status-danger-bg);
+    border: 1px solid var(--status-danger-border);
+}
+
+.ss-dash__trends {
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1199.98px) {
+    .ss-dash__main {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ss-room-tiles {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767.98px) {
+    .ss-dash__kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ss-dash__strips,
+    .ss-room-tiles {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ss-attn__item {
+        flex-wrap: wrap;
+    }
+
+    .ss-attn__detail {
+        white-space: normal;
+    }
+}
+
+/* ==========================================================================
+   23. ADMIN BOOKINGS (Task R7): ss-bk-tabs, ss-bk-more, ss-bk-table, ss-bk__*
+   Tabs with counts, toolbar extras, one badge + one visible action per row.
+   ========================================================================== */
+.ss-bk-tabs {
+    margin-bottom: 1rem;
+    overflow-x: auto;
+}
+
+.ss-bk-tabs__count {
+    margin-left: 0.25rem;
+    padding: 0 0.375rem;
+    border-radius: var(--ss-r-pill);
+    background-color: var(--color-sand);
+    color: var(--color-text-dark);
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-bk-more {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem 1rem;
+}
+
+.ss-bk-more__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 160px;
+}
+
+.ss-bk-more__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-bk-more__check {
+    min-height: 31px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.ss-bk-more__actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.ss-bk-table {
+    margin-bottom: 1rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    transition: opacity var(--ss-dur-fast, 160ms) ease;
+}
+
+.ss-bk-table--loading {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.ss-bk-table .table > :last-child > tr:last-child > * {
+    border-bottom: 0;
+}
+
+.ss-bk__guest,
+.ss-bk__room {
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-bk__sub {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-bk__code {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-text-dark);
+}
+
+.ss-bk__lock {
+    color: var(--status-warning-text);
+}
+
+.ss-bk__when {
+    font-size: 0.875rem;
+    color: var(--color-text-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-bk__total {
+    font-weight: 600;
+    color: var(--color-text-dark);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ss-bk__flag {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.ss-bk__none {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+/* ==========================================================================
+   24. ROOMS ADMIN (Task R8): ss-rm-grid / ss-rm-card (list), ss-rm-tabs, ss-rm-section,
+   ss-rm-photos (Details tab), ss-rm-slots (Slots & Pricing tab), ss-rm-actionbar (sticky).
+   ========================================================================== */
+.ss-rm-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.ss-rm-card {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    box-shadow: var(--ss-shadow-base);
+    overflow: hidden;
+}
+
+.ss-rm-card__media {
+    aspect-ratio: 16 / 9;
+    background-color: var(--color-sand);
+}
+
+.ss-rm-card__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.ss-rm-card--inactive .ss-rm-card__img {
+    filter: grayscale(0.7);
+    opacity: 0.7;
+}
+
+.ss-rm-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 0.875rem 1rem 1rem;
+    flex: 1;
+}
+
+.ss-rm-card__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.ss-rm-card__title {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-rm-card__code {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.ss-rm-card__meta,
+.ss-rm-card__price {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-rm-card__price {
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-rm-card__slots {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.125rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ss-rm-card__slot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    cursor: default;
+}
+
+.ss-rm-card__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 0.5rem;
+}
+
+.ss-rm-empty {
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    margin-bottom: 1.5rem;
+}
+
+/* Edit room / Slots & Pricing */
+.ss-rm-form__header {
+    margin-bottom: 0.5rem;
+}
+
+.ss-rm-form__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-decoration: none;
+}
+
+.ss-rm-form__back:hover {
+    color: var(--color-text-dark);
+}
+
+.ss-rm-form__code {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--color-text-muted);
+}
+
+.ss-rm-tabs {
+    margin-bottom: 1rem;
+}
+
+.ss-rm-tabs__off {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ss-rm-form {
+    max-width: 960px;
+}
+
+.ss-rm-section {
+    padding: 1.125rem 1.25rem;
+    margin-bottom: 1rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    box-shadow: var(--ss-shadow-micro);
+}
+
+.ss-rm-section__title {
+    margin: 0 0 0.875rem;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-rm-section__hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-rm-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 44px;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid var(--color-sand);
+    border-radius: var(--ss-r-sm);
+    background-color: var(--color-milk);
+    cursor: text;
+}
+
+.ss-rm-chips:focus-within {
+    border-color: var(--color-caramel);
+    box-shadow: 0 0 0 3px rgba(154, 91, 46, 0.2);
+}
+
+.ss-rm-chips__list {
+    display: contents;
+}
+
+.ss-rm-chips__chip {
+    cursor: default;
+}
+
+.ss-rm-chips__remove {
+    display: inline-flex;
+    align-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    line-height: 1;
+}
+
+.ss-rm-chips__input {
+    flex: 1;
+    min-width: 160px;
+    border: 0;
+    outline: none;
+    background: transparent;
+    font-size: 0.875rem;
+    color: var(--color-text-dark);
+}
+
+/* Photos */
+.ss-rm-photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.ss-rm-photo__frame {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    border: 1px solid var(--color-sand);
+    border-radius: var(--ss-r-sm);
+    overflow: hidden;
+    background-color: var(--color-sand);
+}
+
+.ss-rm-photo--main .ss-rm-photo__frame {
+    border: 2px solid var(--color-caramel);
+}
+
+.ss-rm-photo__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.ss-rm-photo__badge,
+.ss-rm-photo__deleted {
+    position: absolute;
+    top: 0.375rem;
+    left: 0.375rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--ss-r-pill);
+    background-color: var(--color-espresso);
+    color: var(--color-text-light);
+    font-size: 0.6875rem;
+    font-weight: 600;
+}
+
+.ss-rm-photo__deleted {
+    left: auto;
+    right: 0.375rem;
+    background-color: var(--status-danger-bg);
+    color: var(--status-danger-text);
+    border: 1px solid var(--status-danger-border);
+}
+
+.ss-rm-photo--deleted .ss-rm-photo__img {
+    opacity: 0.35;
+}
+
+.ss-rm-photo--deleted .ss-rm-photo__actions {
+    visibility: hidden;
+}
+
+.ss-rm-photo__actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.375rem;
+}
+
+.ss-rm-photo__btn {
+    flex: 1;
+    min-height: 32px;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--color-sand);
+    border-radius: var(--ss-r-sm);
+    background-color: var(--color-milk);
+    color: var(--color-text-dark);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.ss-rm-photo__btn:hover {
+    background-color: var(--color-sand);
+}
+
+.ss-rm-photo__btn[aria-pressed="true"] {
+    background-color: var(--color-caramel);
+    border-color: var(--color-caramel);
+    color: var(--color-milk);
+}
+
+.ss-rm-photo__btn--danger {
+    flex: 0 0 auto;
+    color: var(--status-danger-text);
+}
+
+.ss-rm-upload {
+    padding: 0.875rem;
+    border: 1px dashed var(--color-latte);
+    border-radius: var(--ss-r-sm);
+}
+
+.ss-rm-switch .form-check-input:checked {
+    background-color: var(--color-caramel);
+    border-color: var(--color-caramel);
+}
+
+/* Sticky bottom action bar */
+.ss-rm-actionbar {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.18);
+    border-radius: var(--ss-r-md);
+    box-shadow: 0 -6px 18px -8px rgba(43, 27, 18, 0.18);
+}
+
+.ss-rm-actionbar__note {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--status-warning-text);
+}
+
+/* Slots & Pricing */
+.ss-rm-status {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.ss-rm-status__select {
+    width: auto;
+    min-width: 220px;
+}
+
+.ss-rm-status-ro {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--color-text-dark);
+}
+
+.ss-rm-maint {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: var(--ss-r-sm);
+    color: var(--status-danger-text);
+    background-color: var(--status-danger-bg);
+    border: 1px solid var(--status-danger-border);
+    font-size: 0.875rem;
+}
+
+.ss-rm-slots__name {
+    min-width: 130px;
+}
+
+.ss-rm-slots__code,
+.ss-rm-slots__note,
+.ss-rm-slots__today {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.ss-rm-slots__code {
+    font-family: var(--font-mono);
+}
+
+.ss-rm-slots__times {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-width: 230px;
+}
+
+.ss-rm-slots__price {
+    min-width: 150px;
+}
+
+.ss-rm-slots__status {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-width: 210px;
+}
+
+.ss-rm-slots__status .form-select {
+    width: auto;
+}
+
+.ss-rm-slots__offered {
+    margin: 0;
+    font-size: 0.8125rem;
+}
+
+.ss-rm-slots__row--changed > td {
+    background-color: var(--status-warning-bg);
+}
+
+.ss-rm-slots__row--changed > td:first-child {
+    box-shadow: inset 3px 0 0 var(--status-warning);
+}
+
+@media (max-width: 1199.98px) {
+    .ss-rm-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767.98px) {
+    .ss-rm-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* ==========================================================================
+   25. DEVICES + ACTIVITY LOGS (Task R9): ss-dev-*, ss-act-*
+   Zone / day group headers, status dots, plain-words reasons, detail drawer, snapshot lightbox.
+   ========================================================================== */
+.ss-dev-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-dev-summary__bad {
+    font-weight: 600;
+    color: var(--status-danger-text);
+}
+
+.ss-dev-summary__warn {
+    font-weight: 600;
+    color: var(--status-warning-text);
+}
+
+.ss-dev-table,
+.ss-act-table {
+    margin-bottom: 1rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+}
+
+.ss-dev-group > th,
+.ss-act__day > th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    background-color: var(--color-cream);
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--color-sand);
+}
+
+.ss-dev__name,
+.ss-act__main {
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-dev__id,
+.ss-act__sub {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-dev__id {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+}
+
+.ss-dev__type {
+    margin-right: 0.375rem;
+    color: var(--color-text-muted);
+}
+
+.ss-dev__status,
+.ss-act__ok {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.ss-dev__warn {
+    font-weight: 600;
+    color: var(--status-warning-text);
+}
+
+.ss-dev__bad {
+    font-weight: 600;
+    color: var(--status-danger-text);
+}
+
+.ss-dev-row--off > td {
+    color: var(--color-text-muted);
+}
+
+/* IoT: remote Unlock / Silence on lock rows + the lock's confirmation line */
+.ss-dev__cmds {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.375rem;
+    margin-right: 0.375rem;
+    vertical-align: middle;
+}
+
+.ss-dev__cmd-form {
+    margin: 0;
+}
+
+.ss-dev__cmd {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.625rem;
+    font-size: 0.8125rem;
+}
+
+.ss-dev-ack {
+    margin: 0.375rem 0 0;
+    padding: 0.25rem 0.625rem;
+    display: inline-block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--status-success-text);
+    background-color: var(--status-success-bg);
+    border: 1px solid var(--status-success-border);
+    border-radius: var(--ss-r-md);
+}
+
+/* Activity rows open the drawer */
+.ss-act__row {
+    cursor: pointer;
+}
+
+.ss-act__row:hover > td {
+    background-color: var(--color-cream);
+}
+
+.ss-act__row:focus-visible {
+    outline: 2px solid var(--color-caramel);
+    outline-offset: -2px;
+}
+
+.ss-act__time {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--color-text-dark);
+}
+
+.ss-act__row--denied > td:first-child {
+    box-shadow: inset 3px 0 0 var(--status-danger);
+}
+
+.ss-act__dist {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 150px;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-act__bar {
+    position: relative;
+    flex: 1;
+    max-width: 120px;
+    height: 6px;
+    border-radius: var(--ss-r-pill);
+    background-color: var(--color-sand);
+    overflow: hidden;
+}
+
+.ss-act__bar > span {
+    display: block;
+    height: 100%;
+    background-color: var(--color-latte);
+}
+
+.ss-act__dist--close .ss-act__bar > span {
+    background-color: var(--status-warning);
+}
+
+.ss-act__dist--close .ss-act__dist-num {
+    font-weight: 600;
+    color: var(--status-warning-text);
+}
+
+.ss-act__thumb {
+    position: relative;
+    width: 72px;
+    height: 48px;
+    padding: 0;
+    border: 1px solid var(--color-sand);
+    border-radius: var(--ss-r-sm);
+    background-color: var(--color-sand);
+    overflow: hidden;
+    cursor: zoom-in;
+}
+
+.ss-act__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.ss-act__thumb-none {
+    display: none;
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+}
+
+.ss-act__thumb--broken {
+    width: auto;
+    height: auto;
+    padding: 0 0.25rem;
+    border: 0;
+    background: transparent;
+    cursor: default;
+}
+
+.ss-act__thumb--broken img {
+    display: none;
+}
+
+.ss-act__thumb--broken .ss-act__thumb-none {
+    display: inline;
+    font-size: 0.8125rem;
+}
+
+/* Detail drawer content */
+.ss-act-dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.5rem 1rem;
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.ss-act-dl dt {
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.ss-act-dl dd {
+    margin: 0;
+    color: var(--color-text-dark);
+    word-break: break-all;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Snapshot lightbox in the guest gallery style (espresso stage) */
+.ss-act-lightbox .modal-content {
+    position: relative;
+    background-color: var(--color-espresso);
+    border: 1px solid var(--color-cocoa);
+    border-radius: var(--ss-r-lg);
+    overflow: hidden;
+}
+
+.ss-act-lightbox__img {
+    width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+    display: block;
+}
+
+.ss-act-lightbox__close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 2;
+}
+
+/* ==========================================================================
+   26. SECURITY ALERTS INBOX (Task R10): ss-inbox-*
+   Severity colour bar on the left, plain-words title, 2-line message, inline actions.
+   ========================================================================== */
+.ss-inbox {
+    margin-bottom: 1rem;
+}
+
+.ss-inbox__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    overflow: hidden;
+}
+
+.ss-inbox__list:empty {
+    display: none;
+}
+
+.ss-inbox__item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1rem 0.875rem 1rem;
+    border-left: 4px solid var(--sev-low);
+    border-bottom: 1px solid var(--color-sand);
+    background-color: var(--color-milk);
+    cursor: pointer;
+}
+
+.ss-inbox__item:last-child {
+    border-bottom: 0;
+}
+
+.ss-inbox__item:hover {
+    background-color: var(--color-cream);
+}
+
+.ss-inbox__item:focus-visible {
+    outline: 2px solid var(--color-caramel);
+    outline-offset: -2px;
+}
+
+.ss-inbox__item--critical {
+    border-left-color: var(--sev-critical);
+}
+
+.ss-inbox__item--high {
+    border-left-color: var(--sev-high);
+}
+
+.ss-inbox__item--medium {
+    border-left-color: var(--sev-medium);
+}
+
+.ss-inbox__item--done {
+    border-left-color: var(--color-sand);
+}
+
+.ss-inbox__item--done .ss-inbox__title,
+.ss-inbox__item--done .ss-inbox__msg {
+    color: var(--color-text-muted);
+}
+
+.ss-inbox__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.ss-inbox__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ss-inbox__title {
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-inbox__sev {
+    padding: 0.0625rem 0.4375rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    letter-spacing: 0.01em;
+}
+
+.ss-inbox__msg {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0.25rem 0 0.25rem;
+    font-size: 0.875rem;
+    color: var(--color-text-dark);
+}
+
+.ss-inbox__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-inbox__actions {
+    flex-shrink: 0;
+    cursor: default;
+}
+
+.ss-inbox__actions form {
+    margin: 0;
+}
+
+.ss-inbox__done {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+/* Resolve: <details> popover, works without JS */
+.ss-inbox__resolve {
+    position: relative;
+}
+
+.ss-inbox__resolve > summary {
+    list-style: none;
+}
+
+.ss-inbox__resolve > summary::-webkit-details-marker {
+    display: none;
+}
+
+.ss-inbox__pop {
+    position: absolute;
+    top: calc(100% + 0.375rem);
+    right: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 260px;
+    padding: 0.75rem;
+    background-color: var(--color-milk);
+    border: 1px solid var(--color-sand);
+    border-radius: var(--ss-r-md);
+    box-shadow: 0 8px 24px rgba(43, 27, 18, 0.12);
+}
+
+.ss-inbox__pop-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+/* Drawer: message + timeline */
+.ss-inbox__drawer-msg {
+    margin-bottom: 1rem;
+    color: var(--color-text-dark);
+}
+
+/* ESP32-CAM photo attached to a device alert */
+.ss-inbox__snap {
+    margin: 0 0 1rem;
+}
+
+.ss-inbox__snap img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--color-sand);
+    border-radius: var(--ss-r-md);
+    background-color: var(--color-sand);
+}
+
+.ss-inbox__snap-caption {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.ss-inbox__tl-title {
+    margin: 1.25rem 0 0.5rem;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.ss-inbox__tl {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 1rem;
+    border-left: 2px solid var(--color-sand);
+}
+
+.ss-inbox__tl li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0.75rem;
+}
+
+.ss-inbox__tl li::before {
+    content: "";
+    position: absolute;
+    top: 0.375rem;
+    left: -1.3125rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background-color: var(--color-caramel);
+}
+
+.ss-inbox__tl-step {
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-inbox__tl-when,
+.ss-inbox__tl-note {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+@media (max-width: 575.98px) {
+    .ss-inbox__item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .ss-inbox__pop {
+        right: auto;
+        left: 0;
+    }
+}
+
+/* ==========================================================================
+   27. REVIEWS FEED + REVENUE REPORT (Task R11): ss-rv-*, ss-rev-*
+   Single page scroll (no nested max-height), neutral numbers, small share bars.
+   ========================================================================== */
+/* Per-room average cards: 3 per row desktop, 2 tablet, 1 phone */
+.ss-rv-rooms {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.ss-rv-room {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+    color: var(--color-text-dark);
+    text-decoration: none;
+}
+
+.ss-rv-room:hover {
+    border-color: var(--color-latte);
+    color: var(--color-text-dark);
+}
+
+.ss-rv-room:focus-visible {
+    outline: 2px solid var(--color-caramel);
+    outline-offset: 2px;
+}
+
+.ss-rv-room--active {
+    border-color: var(--color-caramel);
+    box-shadow: inset 0 0 0 1px var(--color-caramel);
+}
+
+.ss-rv-room__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.ss-rv-room__name {
+    font-weight: 600;
+}
+
+.ss-rv-room__count,
+.ss-rv-room__sub {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-rv-room__sub {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.ss-rv-room__avg {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin-top: 0.25rem;
+}
+
+.ss-rv-room__num {
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    font-weight: 500;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-rv-room__bar,
+.ss-rev__bar {
+    position: relative;
+    flex: 1;
+    height: 6px;
+    border-radius: var(--ss-r-pill);
+    background-color: var(--color-sand);
+    overflow: hidden;
+}
+
+.ss-rv-room__bar > span,
+.ss-rev__bar > span {
+    display: block;
+    height: 100%;
+    background-color: var(--color-caramel);
+}
+
+.ss-rv-toolbar__room {
+    min-width: 160px;
+}
+
+/* Review card feed */
+.ss-rv-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.ss-rv {
+    display: flex;
+    gap: 0.875rem;
+    padding: 1rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+}
+
+.ss-rv--hidden {
+    background-color: var(--color-cream);
+}
+
+.ss-rv--hidden .ss-rv__comment,
+.ss-rv--hidden .ss-rv__name,
+.ss-rv--hidden .ss-rv__stars {
+    opacity: 0.6;
+}
+
+.ss-rv__avatar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background-color: var(--color-sand);
+    color: var(--color-cocoa);
+    font-weight: 600;
+}
+
+.ss-rv__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.ss-rv__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ss-rv__name {
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-rv__stars {
+    color: var(--color-caramel);
+    font-size: 0.875rem;
+    letter-spacing: 0.0625rem;
+}
+
+.ss-rv__menu {
+    margin-left: auto;
+}
+
+.ss-rv__comment {
+    margin: 0.5rem 0;
+    color: var(--color-text-dark);
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.ss-rv__comment--none {
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.ss-rv__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-rv__meta a {
+    color: var(--color-text-muted);
+}
+
+.ss-rv__hide {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 360px;
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background-color: var(--color-milk);
+    border: 1px solid var(--color-sand);
+    border-radius: var(--ss-r-md);
+    box-shadow: 0 8px 24px rgba(43, 27, 18, 0.12);
+}
+
+.ss-rv__hide[hidden] {
+    display: none;
+}
+
+.ss-rv__hide-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.ss-rv__hide-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+/* Revenue */
+.ss-rev__info {
+    margin-left: 0.25rem;
+    color: var(--color-text-muted);
+    cursor: help;
+}
+
+.ss-rev__dates {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.ss-rev__dates .form-control {
+    width: 140px;
+}
+
+.ss-rev__dash {
+    color: var(--color-text-muted);
+}
+
+.ss-rev__kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.ss-rev__kpi .ss-kpi__of {
+    margin-left: 0;
+}
+
+.ss-rev__change {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    align-self: flex-start;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--ss-r-pill);
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-rev__change--up {
+    color: var(--status-success-text);
+    background-color: var(--status-success-bg);
+}
+
+.ss-rev__change--down {
+    color: var(--status-danger-text);
+    background-color: var(--status-danger-bg);
+}
+
+.ss-rev__change--flat {
+    color: var(--color-text-muted);
+    background-color: var(--color-cream);
+    font-weight: 400;
+}
+
+.ss-rev__card {
+    margin-bottom: 1.25rem;
+    padding: 1rem 1.25rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+}
+
+.ss-rev__card-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.ss-rev__card-head .ss-rev__card-title {
+    margin-bottom: 0;
+}
+
+.ss-rev__card-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.875rem;
+}
+
+.ss-rev__card-title {
+    margin-bottom: 0.75rem;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-rev__chart {
+    position: relative;
+    height: 320px;
+}
+
+.ss-rev__split {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+}
+
+.ss-rev__empty {
+    margin: 0;
+    padding: 0.75rem 0;
+    color: var(--color-text-muted);
+    text-align: center;
+}
+
+.ss-rev__share,
+.ss-rev__detail {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    color: var(--color-text-dark);
+}
+
+.ss-rev__detail {
+    max-width: 640px;
+}
+
+.ss-rev__detail tbody tr:nth-child(even) {
+    background-color: var(--color-cream);
+}
+
+.ss-rev__detail tbody tr:nth-child(odd) {
+    background-color: var(--color-milk);
+}
+
+.ss-rev__detail tbody tr:hover {
+    background-color: var(--color-sand);
+}
+
+.ss-rev__share th,
+.ss-rev__detail th {
+    padding: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-align: left;
+    border-bottom: 1px solid var(--color-sand);
+}
+
+.ss-rev__share td,
+.ss-rev__detail td {
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--color-sand);
+}
+
+.ss-rev__share .ss-rev__num,
+.ss-rev__detail .ss-rev__num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ss-rev__name {
+    font-weight: 600;
+}
+
+.ss-rev__sub {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-rev__bar-cell {
+    min-width: 120px;
+}
+
+.ss-rev__bar-cell .ss-rev__bar {
+    display: inline-block;
+    width: calc(100% - 3rem);
+    vertical-align: middle;
+}
+
+.ss-rev__pct {
+    display: inline-block;
+    width: 2.5rem;
+    text-align: right;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+    vertical-align: middle;
+}
+
+/* Detailed table: sticky header, Total row sticks to the bottom of the viewport */
+.ss-rev__detail thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background-color: var(--color-milk);
+}
+
+.ss-rev__detail tfoot th,
+.ss-rev__detail tfoot td {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 0.625rem 0.5rem;
+    background-color: var(--color-cream);
+    font-weight: 600;
+    color: var(--color-text-dark);
+    border-top: 1px solid var(--color-latte);
+}
+
+.ss-rev__detail tfoot th {
+    text-align: left;
+}
+
+.ss-rev__row--zero td {
+    color: var(--color-text-muted);
+}
+
+@media (max-width: 991.98px) {
+    .ss-rv-rooms {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ss-rev__kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ss-rev__split {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 575.98px) {
+    .ss-rv-rooms {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ss-rv {
+        padding: 0.875rem;
+    }
+
+    .ss-rev__dates .form-control {
+        width: 100%;
+    }
+
+    .ss-rev__card {
+        padding: 0.875rem;
+    }
+}
+
+/* ==========================================================================
+   28. R12 QA: design rule "never font-weight 700" (only 400 / 600 font files ship).
+   Older pages still use Bootstrap .fw-bold and <b>/<strong>; render them at 600.
+   ========================================================================== */
+.fw-bold {
+    font-weight: 600 !important;
+}
+
+b,
+strong {
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   29. GUEST REDESIGN (Task V2) - follows docs/design-plan.md
+   Typography applied for real (fonts were declared in section 0 but not used), quiet editorial
+   surfaces, and the two signature moments: slot picker + combo ladder, Digital Keycard PIN vault.
+   ========================================================================== */
+
+/* 29.1 Typography: Plus Jakarta Sans for UI and body, Newsreader 500 for page and section titles */
+body {
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+}
+
+h1, h2, .h1, .h2 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+}
+
+h3, h4, h5, h6, .h3, .h4, .h5, .h6 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+}
+
+/* Added next to legacy title classes that still set Georgia / 700 in app.css */
+.ss-serif {
+    font-family: var(--font-serif) !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.01em;
+}
+
+/* Prices, codes and counts line up */
+.ss-num,
+.mockpay-countdown-display,
+#sticky-total,
+#mobile-bar-price,
+#mobile-drawer-total,
+.matrix-slot-price,
+.card-slot-price,
+.rate-value,
+.rate-value-sub {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Body copy stays under ~75 characters */
+.ss-measure {
+    max-width: 38rem;
+}
+
+/* 29.2 Visible keyboard focus everywhere */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--color-caramel);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+/* 29.3 Guest pages: tap targets of at least 44px on phones */
+@media (max-width: 767.98px) {
+    .ss-area-guest .btn,
+    .ss-area-guest .form-select,
+    .ss-area-guest .form-control:not(textarea),
+    .ss-area-guest .nav-link,
+    .ss-area-guest .dropdown-item {
+        min-height: 44px;
+    }
+
+    .ss-area-guest .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* 29.4 Home hero: warm espresso overlay over the real lobby photo, light text */
+.hero-full.ss-home-hero {
+    color: var(--color-text-light);
+    background-image:
+        linear-gradient(180deg, rgba(43, 27, 18, 0.2) 0%, rgba(43, 27, 18, 0.85) 100%),
+        url('../images/branding/hero_img2.jpg');
+    background-position: center, center;
+    padding-bottom: 5rem;
+}
+
+.ss-home-hero .hero-title {
+    color: var(--color-milk);
+    font-size: clamp(2rem, 4.4vw, 2.75rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    max-width: 18ch;
+}
+
+.ss-home-hero .hero-lead {
+    color: var(--color-text-light);
+    max-width: 34rem;
+}
+
+.ss-home-hero .hero-points {
+    color: var(--color-latte);
+}
+
+.ss-home-hero .hero-points li::before {
+    background-color: var(--color-latte);
+}
+
+.ss-home-hero .btn-hero-ghost {
+    color: var(--color-milk);
+    background-color: transparent;
+    border: 1px solid rgba(217, 185, 145, 0.6);
+}
+
+.ss-home-hero .btn-hero-ghost:hover {
+    color: var(--color-espresso);
+    background-color: var(--color-latte);
+    border-color: var(--color-latte);
+}
+
+/* The one orchestrated page-load moment of the site */
+.ss-home-hero .hero-content {
+    animation: ssFadeUp var(--ss-dur-slow) var(--ss-ease-out) both;
+}
+
+/* Floating search: feature surface (Milk, large radius, feature elevation) */
+.agoda-search-box.ss-home-search {
+    background-color: var(--color-milk);
+    border: 1px solid rgba(217, 185, 145, 0.4) !important;
+    border-radius: var(--ss-r-lg) !important;
+    box-shadow: var(--ss-shadow-feature) !important;
+    animation: ssFadeUp var(--ss-dur-slow) var(--ss-ease-out) 80ms both;
+}
+
+.ss-home-search .search-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--color-text-dark);
+}
+
+/* Section titles on the home page: sentence case, no eyebrow above them */
+.ss-home-section-title {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    line-height: 1.25;
+    color: var(--color-espresso);
+}
+
+/* Room facts as a small icon row instead of "A · B" strings */
+.ss-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.ss-facts li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.ss-facts .bi {
+    color: var(--color-cocoa);
+}
+
+/* 29.5 Signature moment 1: slot picker tiles (classes added next to the matrix ones) */
+.matrix-slot-btn.ss-slot {
+    width: 100%;
+    min-height: 56px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.matrix-slot-btn.ss-slot--available {
+    background-color: var(--color-milk);
+    border: 1px solid var(--color-sand);
+    color: var(--color-text-dark);
+}
+
+.matrix-slot-btn.ss-slot--available:hover {
+    background-color: var(--color-cream);
+    border-color: var(--color-latte);
+}
+
+.matrix-slot-btn.ss-slot.matrix-slot-selected,
+.mobile-slot-card.ss-slot.matrix-slot-selected {
+    background-color: var(--color-caramel) !important;
+    border-color: var(--color-caramel) !important;
+    color: var(--color-milk) !important;
+    box-shadow: 0 2px 8px rgba(154, 91, 46, 0.28);
+    animation: ssSlotSpring var(--ss-dur-mid) var(--ss-ease-spring) 1;
+}
+
+.matrix-slot-btn.ss-slot.matrix-slot-selected .matrix-slot-price,
+.mobile-slot-card.ss-slot.matrix-slot-selected .card-slot-price,
+.mobile-slot-card.ss-slot.matrix-slot-selected .card-slot-name,
+.mobile-slot-card.ss-slot.matrix-slot-selected .card-slot-time,
+.mobile-slot-card.ss-slot.matrix-slot-selected .card-slot-code {
+    color: var(--color-milk) !important;
+}
+
+.matrix-slot-btn.ss-slot--booked {
+    background-color: var(--color-sand);
+    border-color: transparent;
+    color: var(--color-text-muted);
+}
+
+.mobile-slot-card.ss-slot {
+    min-height: 44px;
+    align-items: stretch;
+}
+
+/* Combo ladder: the three discount steps, the reached one lights up */
+.ss-combo-ladder.ss-combo-ladder--detail {
+    padding: 0;
+    margin-bottom: 1rem;
+}
+
+.ss-combo-ladder__label {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    margin-right: 0.25rem;
+}
+
+.ss-combo-ladder__tier--pulse {
+    animation: ssPulseOnce var(--ss-dur-slow) var(--ss-ease-out) 1;
+}
+
+/* Desktop summary card reads as the reservation card of the plan */
+.desktop-booking-summary.ss-reservation-card {
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+}
+
+.ss-reservation-card .booking-card-header {
+    background-color: var(--color-espresso);
+}
+
+.ss-reservation-card #sticky-total {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    color: var(--color-espresso) !important;
+}
+
+/* Mobile bar total: short highlight when the amount changes (booking-bar.js toggles the class) */
+.ss-total-bump {
+    animation: ssTotalBump var(--ss-dur-mid) var(--ss-ease-spring) 1;
+}
+
+/* 29.6 Checkout: VietQR card on Milk */
+.mockpay-qr-box.ss-qr-card {
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.16);
+    border-radius: var(--ss-r-lg);
+    box-shadow: var(--ss-shadow-base);
+}
+
+#simulationSuccessView:not(.d-none) {
+    animation: ssSuccessIn var(--ss-dur-slow) var(--ss-ease-out) 1;
+}
+
+.btn-copied {
+    animation: ssCopySpring var(--ss-dur-mid) var(--ss-ease-spring) 1;
+}
+
+/* 29.7 Signature moment 2: Digital Keycard (payment result + booking detail) */
+.ss-pin-vault {
+    text-align: left;
+    margin-bottom: 1.5rem;
+}
+
+.ss-pin-vault__brand {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--color-text-light);
+}
+
+.ss-pin-vault__state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.625rem;
+    border: 1px solid rgba(217, 185, 145, 0.45);
+    border-radius: var(--ss-r-pill);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-latte);
+}
+
+.ss-pin-vault__state::before {
+    content: "";
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-radius: 50%;
+    background-color: var(--color-latte);
+}
+
+.ss-pin-vault__label {
+    font-size: 0.8125rem;
+    color: var(--color-text-light);
+    margin-bottom: 0.5rem;
+}
+
+.ss-pin-vault .pin-code-large,
+.ss-pin-vault .ss-pin-vault__digits {
+    color: var(--color-latte) !important;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 6vw, 2.25rem);
+    letter-spacing: clamp(0.12em, 2vw, 0.35em);
+    white-space: nowrap;
+    line-height: 1;
+    margin: 0;
+}
+
+.ss-pin-vault__digits--reveal {
+    animation: ssPinReveal var(--ss-dur-slow) var(--ss-ease-out) 1;
+}
+
+.ss-pin-vault__copy.btn {
+    color: var(--color-espresso);
+    background-color: var(--color-latte);
+    border: 1px solid var(--color-latte);
+    border-radius: var(--ss-r-sm);
+    min-height: 44px;
+    font-weight: 600;
+}
+
+.ss-pin-vault__copy.btn:hover,
+.ss-pin-vault__copy.btn:focus-visible {
+    color: var(--color-espresso);
+    background-color: var(--color-milk);
+    border-color: var(--color-milk);
+}
+
+.ss-pin-vault__copy.btn-copied .text-success,
+.ss-pin-vault__copy.btn-copied .bi {
+    color: var(--color-espresso) !important;
+}
+
+.ss-pin-vault__meta strong {
+    color: var(--color-text-light);
+    font-weight: 600;
+}
+
+.ss-pin-vault__note {
+    color: var(--color-text-light);
+    font-size: 0.8125rem;
+}
+
+.ss-pin-vault .btn-primary {
+    background-color: var(--color-latte);
+    border-color: var(--color-latte);
+    color: var(--color-espresso);
+}
+
+.ss-pin-vault .alert {
+    margin-bottom: 0;
+}
+
+@media print {
+    .ss-pin-vault {
+        background: var(--color-milk) !important;
+        color: var(--color-espresso) !important;
+        box-shadow: none !important;
+        border: 1px solid var(--color-espresso) !important;
+    }
+
+    .ss-pin-vault .pin-code-large,
+    .ss-pin-vault .ss-pin-vault__digits,
+    .ss-pin-vault__label,
+    .ss-pin-vault__brand,
+    .ss-pin-vault__state,
+    .ss-pin-vault__meta,
+    .ss-pin-vault__meta strong {
+        color: var(--color-espresso) !important;
+    }
+
+    .ss-pin-vault__copy {
+        display: none !important;
+    }
+}
+
+/* 29.8 Quiet guest content pages (contact, terms) */
+.ss-page-intro {
+    max-width: 40rem;
+    margin-bottom: 2rem;
+}
+
+.ss-page-intro__title {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    line-height: 1.2;
+    color: var(--color-espresso);
+    margin-bottom: 0.5rem;
+}
+
+.ss-page-intro__lead {
+    color: var(--color-text-muted);
+    margin: 0;
+}
+
+/* booking-detail.jsp: the keycard also carries the legacy .booking-card class (which uses !important) */
+.booking-card.ss-pin-vault {
+    background-color: var(--color-espresso) !important;
+    border: 1px solid rgba(217, 185, 145, 0.40) !important;
+    border-radius: var(--ss-r-lg) !important;
+    box-shadow: var(--ss-shadow-feature) !important;
+    color: var(--color-text-light);
+}
+
+/* ==========================================================================
+   30. ADMIN REDESIGN (Task V3): denser type for the back office, shared anatomy helpers,
+   staff task list, two-step confirm button. "Normal is quiet, abnormal is loud".
+   ========================================================================== */
+
+/* 30.1 Denser scale in the back office (body.ss-area-admin is set by layout.tag) */
+.ss-area-admin {
+    font-size: 0.875rem;
+}
+
+.ss-area-admin .table,
+.ss-area-admin .ss-table {
+    font-size: 0.875rem;
+}
+
+.ss-area-admin .table td,
+.ss-area-admin .table th {
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+}
+
+.ss-area-admin .ss-table thead th {
+    font-size: 0.78125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--color-text-muted);
+    text-transform: none;
+}
+
+.ss-area-admin .ss-page-header__title {
+    font-size: clamp(1.375rem, 2.4vw, 1.75rem);
+}
+
+/* Data is never monospace in lists; codes in detail views may still use <code> */
+.ss-area-admin .ss-table .font-monospace {
+    font-family: var(--font-sans) !important;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 30.2 Shared helpers */
+.ss-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-cocoa);
+    text-decoration: none;
+}
+
+.ss-back-link:hover {
+    color: var(--color-espresso);
+    text-decoration: underline;
+}
+
+.ss-users__protected {
+    display: inline-block;
+    margin-left: 0.375rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--color-sand);
+    border-radius: var(--ss-r-pill);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    vertical-align: middle;
+}
+
+.ss-users__status {
+    min-width: 140px;
+}
+
+/* Shared drawer: rows that open it look clickable on every list (bookings, alerts, activity) */
+.ss-table .ss-act__row:hover > td {
+    background-color: var(--color-cream);
+}
+
+/* 30.3 Staff: one task per card, large tap targets */
+.ss-staff__summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.ss-staff__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ss-staff__task {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: var(--color-milk);
+    border: 1px solid rgba(154, 91, 46, 0.14);
+    border-radius: var(--ss-r-md);
+}
+
+.ss-staff__task--todo {
+    border-left: 4px solid var(--status-warning);
+}
+
+.ss-staff__room {
+    font-weight: 600;
+    color: var(--color-text-dark);
+}
+
+.ss-staff__title {
+    font-weight: 400;
+    color: var(--color-text-muted);
+}
+
+.ss-staff__when {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+.ss-staff__note {
+    margin: 0.375rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--color-text-dark);
+}
+
+.ss-staff__side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.ss-staff__btn.btn {
+    min-height: 44px;
+    min-width: 120px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ss-staff__nomatch {
+    padding: 1rem;
+    text-align: center;
+    color: var(--color-text-muted);
+}
+
+/* Staff filter pills reuse ss-chip; the page script toggles .active */
+.ss-chip.filter-pill.active {
+    background-color: var(--color-caramel);
+    border-color: var(--color-caramel);
+    color: var(--color-milk);
+}
+
+@media (max-width: 575.98px) {
+    .ss-staff__task {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ss-staff__side {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+}
+
+/* 30.4 Two-step confirm ("Mark as clean"): amber while waiting for the second tap, bar runs out in 3 s */
+.ss-tap-confirm {
+    position: relative;
+    overflow: hidden;
+}
+
+.ss-tap-confirm__bar {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 0;
+    background-color: var(--color-espresso);
+}
+
+.ss-tap-confirm.ss-tap-confirm--armed {
+    background-color: var(--status-warning-bg) !important;
+    border-color: var(--status-warning) !important;
+    color: var(--status-warning-text) !important;
+}
+
+.ss-tap-confirm--armed .ss-tap-confirm__bar {
+    width: 100%;
+    background-color: var(--status-warning);
+    animation: ssProgressCount 3s linear forwards;
+}
+
+/* V3: codes shown inside lists use the UI font with tabular figures (monospace stays in edit / detail views) */
+.ss-area-admin .ss-bk__code,
+.ss-area-admin .ss-dev__id,
+.ss-area-admin .ss-room-tile__code,
+.ss-area-admin .ss-rm-card__code {
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+}
+
+/* ==========================================================================
+   31. ACCESSIBILITY PASS (Task V4)
+   ========================================================================== */
+
+/* 31.1 Skip link: first stop for keyboard users, visible only when focused */
+.ss-skip-link {
+    position: absolute;
+    top: -100px;
+    left: 1rem;
+    z-index: 2000;
+    padding: 0.5rem 1rem;
+    color: var(--color-text-dark);
+    background-color: var(--color-milk);
+    border: 2px solid var(--color-caramel);
+    border-radius: var(--ss-r-sm);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.ss-skip-link:focus {
+    top: 0.5rem;
+}
+
+/* The skip target takes focus without drawing a ring around the whole page */
+#main-content:focus {
+    outline: none;
+}
+
+/* 31.2 Focus ring on dark surfaces: Latte (Caramel on Espresso is about 3:1) */
+.main-navbar :focus-visible,
+.site-footer :focus-visible,
+.ss-home-hero :focus-visible,
+.ss-pin-vault :focus-visible,
+.mobile-drawer-header :focus-visible {
+    outline-color: var(--color-latte);
+}
+
+/* 31.3 Admin room cards: slot code + a shape per state next to the colour */
+.ss-rm-card__slot {
+    width: auto;
+    height: auto;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-rm-card__slot-icon {
+    font-size: 0.75rem;
+    line-height: 1;
+    color: var(--status-neutral-text);
+}
+
+.ss-rm-card__slot-icon--warn {
+    color: var(--status-warning-text);
+}
+
+.ss-rm-card__slot-icon--danger {
+    color: var(--status-danger-text);
+}
+
+/* 31.4 Final critique (V4) */
+/* Footer column titles: sentence case, no tracked-out capitals */
+.site-footer .footer-heading {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+/* Admin room cards: a portrait photo stays inside the 16:9 frame */
+.ss-rm-card__media {
+    overflow: hidden;
+}
+
+/* Tables that scroll sideways contain their screen-reader-only labels (Bootstrap .visually-hidden is
+   position:absolute); otherwise a label in the last column widened the whole page on phones. */
+.table-responsive {
+    position: relative;
+}
+
+/* Revenue "By room / By time slot" tables: tighter on phones, and the card scrolls instead of the page */
+.ss-rev__card {
+    min-width: 0;
+    overflow-x: auto;
+}
+
+@media (max-width: 575.98px) {
+    .ss-rev__share th,
+    .ss-rev__share td {
+        padding: 0.375rem 0.25rem;
+        font-size: 0.8125rem;
+    }
+}
+
+/* ss-tabs rendered as <button> (revenue Overview / Detailed table): drop the browser button frame
+   so they look like the link tabs used everywhere else */
+button.ss-tabs__link {
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   32. CLEARER TABLES (round 3, item 2)
+   ========================================================================== */
+/* The first-column name is the row's main action: it opens the edit / detail page */
+/* .table.ss-table + :not(.btn) outranks the legacy ".table a:not(.btn):not(.badge)" caramel link rule */
+.table.ss-table a.ss-row-link:not(.btn) {
+    color: inherit;
+    text-decoration: none;
+}
+
+.table.ss-table a.ss-row-link:not(.btn):hover {
+    color: var(--color-caramel);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* Technical IDs (device codes) in admin tables: dark text, not the Bootstrap pink */
+.ss-area-admin .ss-table code,
+.ss-area-admin .table code {
+    color: var(--color-text-dark);
+    font-size: 0.8125rem;
+}
+
+/* Item 3 – admin bookings: room code and name on one line */
+.ss-bk__room + .ss-bk__sub {
+    display: inline;
+    margin-left: 0.375rem;
+}
+
+/* Item 3 – payments: a resolution note is one short muted line (full text in the tooltip) */
+.ss-pay__note {
+    max-width: 220px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+/* Item 4 – My bookings: quiet booking code (UI font) and sentence-case column titles */
+.table .ss-bookings__code:not(.btn) {
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-dark);
+}
+
+.ss-bookings-table .bookings-table thead th,
+.ss-bookings-table .bookings-table thead th a {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--color-text-muted) !important;
+}
+
+.ss-bookings-tabs {
+    margin-bottom: 1rem;
+}
+
+/* Item 4 – rooms list: a shorter photo on phones keeps six cards from becoming a 6,700px page */
+@media (max-width: 575.98px) {
+    .ss-rooms-card .boutique-card-img-wrap {
+        height: 180px;
+    }
+}
+
+/* The unavailable reason sits left of the disabled button now that the note line is gone */
+.ss-rooms-card .ss-rooms-card__reason {
+    margin-right: auto;
+}
+
+/* ==========================================================================
+   33. ADMIN LISTS ON PHONES (round 3, item 5)
+   Below 768px every admin list table (bookings, payments, users, devices, alert rules,
+   assignments, activity) becomes a stack of short cards: the first cell is the title line,
+   the other cells wrap underneath as one muted line, the row menu sits top-right.
+   CSS only: the table DOM, the row-click drawer and the row menus are unchanged.
+   The Slots & pricing form table (.ss-rm-slots) keeps its own layout.
+   ========================================================================== */
+@media (max-width: 767.98px) {
+    .ss-area-admin .table-responsive:has(> .ss-table:not(.ss-rm-slots)) {
+        overflow-x: visible;
+    }
+
+    .ss-area-admin .ss-table:not(.ss-rm-slots),
+    .ss-area-admin .ss-table:not(.ss-rm-slots) tbody {
+        display: block;
+        width: 100%;
+    }
+
+    /* Column titles are hidden visually but stay available to screen readers */
+    .ss-area-admin .ss-table:not(.ss-rm-slots) thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    .ss-area-admin .ss-table:not(.ss-rm-slots) tbody tr {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.25rem 0.75rem;
+        padding: 0.75rem 3rem 0.75rem 1rem;
+        border-bottom: 1px solid var(--color-sand);
+    }
+
+    .ss-area-admin .ss-table:not(.ss-rm-slots) tbody td {
+        display: block;
+        padding: 0 !important;
+        border: 0 !important;
+        text-align: left !important;
+        font-size: 0.8125rem;
+        color: var(--color-text-muted);
+        max-width: 100%;
+        background: transparent !important;
+        box-shadow: none;
+    }
+
+    .ss-area-admin .ss-table:not(.ss-rm-slots) tbody td:empty {
+        display: none;
+    }
+
+    /* Title line */
+    .ss-area-admin .ss-table:not(.ss-rm-slots) tbody td:first-child {
+        flex: 1 1 100%;
+        font-size: 0.9375rem;
+        color: var(--color-text-dark);
+    }
+
+    /* Row menu / row action in the top-right corner */
+    .ss-area-admin .ss-table:not(.ss-rm-slots) tbody td.pe-3.text-end {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+
+    /* Group headers (day in Activity logs, zone in Devices) span the card list */
+    .ss-area-admin .ss-table:not(.ss-rm-slots) tbody tr.ss-act__day,
+    .ss-area-admin .ss-table:not(.ss-rm-slots) tbody tr.ss-dev-group {
+        display: block;
+        padding: 0;
+    }
+
+    .ss-area-admin .ss-table:not(.ss-rm-slots) tbody tr.ss-act__day th,
+    .ss-area-admin .ss-table:not(.ss-rm-slots) tbody tr.ss-dev-group th {
+        display: block;
+        padding: 0.5rem 1rem !important;
+    }
+
+    /* Denied door attempts: the red marker runs down the card edge, not through the time */
+    .ss-area-admin .ss-table.ss-act tbody tr.ss-act__row--denied {
+        box-shadow: inset 3px 0 0 var(--status-danger);
+    }
+
+    .ss-area-admin .ss-table.ss-act tbody tr.ss-act__row--denied > td:first-child {
+        box-shadow: none;
+    }
+
+    /* Status tabs wrap instead of hiding the last ones off screen */
+    .ss-area-admin .ss-bk-tabs {
+        flex-wrap: wrap;
+        gap: 0.25rem 1.25rem;
+        overflow-x: visible;
+    }
+
+    /* Payments: the two date cells get their names back as small prefixes */
+    .ss-area-admin .ss-pay-table tbody td:nth-child(5)::before {
+        content: "Created ";
+    }
+
+    .ss-area-admin .ss-pay-table tbody td:nth-child(6) > .text-nowrap::before {
+        content: "Paid ";
+    }
+
+    /* Activity: the time leads the title line, the guest follows on the same line */
+    .ss-area-admin .ss-table.ss-act tbody tr.ss-act__row td:first-child {
+        flex: 0 0 auto;
+        font-size: 0.8125rem;
+        color: var(--color-text-muted);
+    }
+
+    .ss-area-admin .ss-table.ss-act tbody tr.ss-act__row td:nth-child(2) {
+        flex: 1 1 60%;
+        font-size: 0.9375rem;
+        color: var(--color-text-dark);
+    }
+}
+
+/* Round 3b Item 5: Room slots & pricing formatted hint */
+.ss-rm-slots__price-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.ss-rm-slots__price-hint {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Round 3b Item 6: Staff cleaning task card links and tap targets */
+.ss-staff__task {
+    position: relative;
+}
+
+.ss-staff__room a.ss-row-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.ss-staff__room a.ss-row-link:hover {
+    color: var(--color-caramel);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+

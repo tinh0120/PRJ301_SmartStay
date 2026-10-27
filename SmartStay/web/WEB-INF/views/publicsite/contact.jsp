@@ -5,14 +5,11 @@
     <!-- Contact Header Banner (Dark Mocha Theme matching mockup Image 1) -->
     <div class="contact-banner">
         <div class="container py-5">
-            <div class="contact-eyebrow-wrap">
-                <span class="contact-eyebrow">GET IN TOUCH</span>
-            </div>
-            <h1 class="contact-title" id="contact-heading">
-                Contact <span class="contact-title-accent">Us</span>
+            <h1 class="contact-title ss-serif" id="contact-heading">
+                Talk to us
             </h1>
             <p class="contact-lead mb-0">
-                Book rooms, ask about long-stay, or just say hello &mdash; we reply within 1 hour.
+                Questions about a room, a longer stay or your booking? We usually reply within an hour.
             </p>
         </div>
     </div>
@@ -72,14 +69,14 @@
                                    target="_blank" 
                                    rel="noopener noreferrer" 
                                    class="contact-map-btn d-inline-flex align-items-center gap-2">
-                                    <i class="bi bi-map"></i> Open in Google Maps <span class="ms-1">&rarr;</span>
+                                    <i class="bi bi-map"></i> Open in Google Maps
                                 </a>
                             </div>
                             <div class="col-lg-5">
                                 <div class="rounded-4 overflow-hidden shadow-sm" style="height: 240px; position: relative;">
                                     <img src="${pageContext.request.contextPath}/assets/images/branding/hero_img2.jpg" 
                                          alt="SmartStay Boutique Hotel Location"
-                                         class="w-100 h-100" 
+                                         class="w-100 h-100" width="1360" height="752"
                                          style="object-fit: cover;"
                                          onerror="this.onerror=null; this.src='${pageContext.request.contextPath}/assets/images/branding/hero_img2.jpg';">
                                     <div class="position-absolute bottom-0 start-0 end-0 p-3" style="background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white;">
@@ -97,7 +94,7 @@
             <div class="row">
                 <div class="col-12">
                     <div class="contact-info-card p-4">
-                        <h3 class="contact-quick-eyebrow mb-3 h6">QUICK CONTACT</h3>
+                        <h3 class="contact-quick-eyebrow mb-3 h6">Quick contact</h3>
                         <div class="row g-3">
                             <!-- Call Card -->
                             <div class="col-12 col-sm-6 col-lg-3">

@@ -48,16 +48,6 @@
     }
 }
 
-/* Shimmer effect for skeleton loading cards */
-@keyframes ssShimmer {
-    0% {
-        background-position: -200% 0;
-    }
-    100% {
-        background-position: 200% 0;
-    }
-}
-
 /* Toast entrance and exit */
 @keyframes ssToastIn {
     0% {
@@ -72,20 +62,12 @@
 
 /* ==========================================================================
    2. UTILITY CLASSES
+   V4: the unused fade-up and skeleton utilities were removed (fade-up lives only on the
+   home hero, see modern-ui.css). The critical pulse is the one looping animation.
    ========================================================================== */
 
-.ss-anim-fade-up {
-    animation: ssFadeUp var(--ss-duration-normal) var(--ss-ease-out) forwards;
-}
-
 .ss-pulse-critical {
-    animation: ssPulseCritical 2s infinite var(--ss-ease-in-out);
-}
-
-.ss-skeleton {
-    background: linear-gradient(90deg, var(--color-sand) 25%, var(--color-cream) 50%, var(--color-sand) 75%);
-    background-size: 200% 100%;
-    animation: ssShimmer 1.8s infinite;
+    animation: ssPulseCritical 2.4s infinite var(--ss-ease-in-out);
 }
 
 /* ==========================================================================
@@ -99,5 +81,371 @@
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+}
+
+/* ==========================================================================
+   4. DEMO DRAWER (Task R2-B3): slides in from the right, up from the bottom
+   below 768px. Motion only answers the user's click on the DEMO tab.
+   ========================================================================== */
+.ss-demo-drawer {
+    transform: translateX(100%);
+    transition: transform var(--ss-dur-mid) var(--ss-ease-out),
+                visibility 0s linear var(--ss-dur-mid);
+}
+
+.ss-demo-drawer--open {
+    transform: translateX(0);
+    transition: transform var(--ss-dur-mid) var(--ss-ease-out),
+                visibility 0s linear 0s;
+}
+
+@media (max-width: 767.98px) {
+    .ss-demo-drawer {
+        transform: translateY(100%);
+    }
+
+    .ss-demo-drawer--open {
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ss-demo-drawer,
+    .ss-demo-drawer--open {
+        transition: none;
+    }
+}
+
+/* ==========================================================================
+   5. ALERTS INBOX (Task R10): new realtime alerts get a short caramel wash
+   ========================================================================== */
+@keyframes ssInboxFresh {
+    from {
+        background-color: var(--sev-medium-bg, #FEF3C7);
+    }
+    to {
+        background-color: var(--color-milk);
+    }
+}
+
+.ss-inbox__item--fresh {
+    animation: ssInboxFresh 4s var(--ss-ease-out, ease-out) 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ss-inbox__item--fresh {
+        animation: none;
+        background-color: var(--sev-medium-bg, #FEF3C7);
+    }
+}
+
+/* ==========================================================================
+   6. GUEST MICRO-INTERACTIONS (Task V2) - only the moments listed in the design plan:
+   slot select, booking total change, copy confirmation, payment success, PIN reveal.
+   ========================================================================== */
+@keyframes ssSlotSpring {
+    0% {
+        transform: scale(1);
+    }
+    45% {
+        transform: scale(1.03);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes ssPulseOnce {
+    0% {
+        box-shadow: 0 0 0 0 rgba(154, 91, 46, 0.45);
+    }
+    100% {
+        box-shadow: 0 0 0 10px rgba(154, 91, 46, 0);
+    }
+}
+
+@keyframes ssTotalBump {
+    0% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-3px);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+@keyframes ssCopySpring {
+    0% {
+        transform: scale(1);
+    }
+    40% {
+        transform: scale(1.15);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes ssSuccessIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* V4: opacity only. Animating letter-spacing changed the width of the PIN row (layout shift). */
+@keyframes ssPinReveal {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ss-home-hero .hero-content,
+    .agoda-search-box.ss-home-search,
+    .matrix-slot-btn.ss-slot.matrix-slot-selected,
+    .mobile-slot-card.ss-slot.matrix-slot-selected,
+    .ss-combo-ladder__tier--pulse,
+    .ss-total-bump,
+    .btn-copied,
+    #simulationSuccessView:not(.d-none),
+    .ss-pin-vault__digits--reveal {
+        animation: none !important;
+    }
+}
+
+/* ==========================================================================
+   7. ADMIN MICRO-INTERACTIONS (Task V3): row confirmation countdown, toast in/out,
+   alert acknowledge, tab switch. Nothing else moves in the back office.
+   ========================================================================== */
+@keyframes ssProgressCount {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0;
+    }
+}
+
+@keyframes ssToastOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+}
+
+@keyframes ssRowAck {
+    0% {
+        background-color: var(--status-success-bg);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+@keyframes ssTabIn {
+    from {
+        opacity: 0.4;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.ss-area-admin .ss-toast {
+    animation: ssToastIn var(--ss-dur-mid) var(--ss-ease-out) 1;
+}
+
+.ss-area-admin .ss-toast.fade:not(.show) {
+    animation: ssToastOut var(--ss-dur-fast) var(--ss-ease-out) 1 forwards;
+}
+
+/* Alerts inbox: a row updated in place (ack / resolve) gets a short green wash */
+.ss-inbox__item--acked {
+    animation: ssRowAck 1.2s var(--ss-ease-out) 1;
+}
+
+/* Bootstrap tab panes (revenue Overview / Detailed table) fade in quickly */
+.ss-area-admin .tab-pane.active {
+    animation: ssTabIn var(--ss-dur-fast) var(--ss-ease-out) 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ss-tap-confirm--armed .ss-tap-confirm__bar,
+    .ss-area-admin .ss-toast,
+    .ss-area-admin .ss-toast.fade:not(.show),
+    .ss-inbox__item--acked,
+    .ss-area-admin .tab-pane.active {
+        animation: none !important;
+    }
+}
+
+/* ==========================================================================
+   8. V4 MOTION DISCIPLINE
+   The approved moments (design plan 3.4) are: home hero reveal, slot select spring + combo
+   pulse, VietQR scan line, copy confirmation, staff 3-second confirm, critical alert pulse.
+   Plus motion that answers a click (drawers, dialogs, toasts, popovers).
+   Everything else that moved on hover in the legacy styles stays still now: colour and border
+   changes remain as the hover feedback. "body" lifts specificity above the inline page styles.
+   ========================================================================== */
+
+/* 8.1 Hover / focus lifts, zooms and nudges from app.css and inline page styles */
+body .btn-nav-auth:hover,
+body .btn-nav-auth:focus,
+body .btn-nav-logout:hover,
+body .btn-nav-logout:focus,
+body .btn-nav-logout:hover i,
+body .btn-hero-ghost:hover,
+body .btn-hero-ghost:active,
+body .site-footer .footer-social-btn:hover,
+body .site-footer .footer-links-list a:hover,
+body .help-tip:hover,
+body .room-card-img:hover,
+body .gallery-thumb-btn:hover,
+body .about-card:hover,
+body .btn-showcase-view-all:hover,
+body .btn-showcase-view-all:hover .view-all-arrow,
+body .showcase-card-link:hover .showcase-card,
+body .showcase-card-link:hover .showcase-card-img,
+body .showcase-card-link:hover .showcase-card-btn,
+body .slot-overview-card:hover,
+body .contact-map-link:hover,
+body .quick-contact-pill:hover,
+body .contact-map-btn:hover,
+body .quick-filter-pill:hover,
+body .catalog-sort-bar .sort-pill-btn:hover,
+body .room-boutique-card:hover,
+body .room-boutique-card:hover .boutique-card-img,
+body .slot-mini-item:hover,
+body .boutique-btn-view:hover,
+body .matrix-slot-available:hover,
+body .ss-slot--available:hover,
+body .matrix-slot-red:hover .slot-booked-favicon-large,
+body .btn-matrix-continue:hover:not(:disabled),
+body .mobile-slot-card.matrix-slot-available:hover,
+body .booking-code-pill:hover,
+body .btn-boutique-view:hover,
+body .btn-auth-submit:hover,
+body .btn-auth-submit:focus,
+body .slot-picker-grid .slot-pill-check:hover .slot-pill-btn,
+body .agoda-search-btn:hover,
+body .btn-calendar-trigger:hover,
+body .btn-primary:hover,
+body .btn-primary:focus,
+body .btn-primary:active,
+body .btn-outline-primary:hover,
+body .btn-outline-primary:active,
+body #bookingTabPills .nav-link:hover,
+body .kpi-box-boutique:hover,
+body .btn-cal-nav:hover,
+body .btn-cal-this-week:hover,
+body .gallery-zoom-badge:hover,
+body .lb-close-btn:hover,
+body .lb-close-btn:focus-visible,
+body .btn-continue-gradient:hover:not(:disabled) {
+    transform: none;
+}
+
+/* Arrow buttons are centred with translateY(-50%): keep that, drop the scale */
+body .gallery-arrow-btn:hover,
+body .slider-nav-btn:hover:not(:disabled),
+body .lb-nav-btn:hover,
+body .lb-nav-btn:focus-visible {
+    transform: translateY(-50%);
+}
+
+/* 8.2 VietQR scan line: one caramel hairline pass, then a pause (4 s cycle) */
+@keyframes ssQrScan {
+    0% {
+        top: 4%;
+        opacity: 0;
+    }
+    8% {
+        opacity: 0.85;
+    }
+    42% {
+        opacity: 0.85;
+    }
+    50% {
+        top: 94%;
+        opacity: 0;
+    }
+    100% {
+        top: 94%;
+        opacity: 0;
+    }
+}
+
+body .mockpay-qr-laser {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-caramel), transparent);
+    box-shadow: none;
+    animation: ssQrScan 4s var(--ss-ease-in-out) infinite;
+}
+
+/* 8.3 Critical alert pulse: only NEW critical alerts (alerts inbox) and critical items in the
+   dashboard "Needs attention" list. The dot sits before text, so colour is not the only cue. */
+.ss-attn__item--critical .ss-attn__title::before,
+.ss-inbox__item--critical[data-status="NEW"] .ss-inbox__sev::before {
+    content: "";
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-right: 0.4375rem;
+    border-radius: 50%;
+    background-color: var(--sev-critical);
+    vertical-align: 0.0625rem;
+    animation: ssPulseCritical 2.4s var(--ss-ease-in-out) infinite;
+}
+
+/* 8.4 Mobile booking sheet (room detail): hidden from keyboard and screen readers while it
+   is closed and off screen; visibility flips after the slide-out finishes */
+@media (max-width: 991.98px) {
+    .mobile-booking-drawer.ss-booksheet {
+        visibility: hidden;
+        transition: transform var(--ss-dur-mid) var(--ss-ease-out),
+                    visibility 0s linear var(--ss-dur-mid);
+    }
+
+    .mobile-booking-drawer.ss-booksheet.is-open {
+        visibility: visible;
+        transition: transform var(--ss-dur-mid) var(--ss-ease-out),
+                    visibility 0s linear 0s;
+    }
+}
+
+/* 8.5 Reduced motion for the looping and inline-page animations above */
+@media (prefers-reduced-motion: reduce) {
+    body .mockpay-qr-laser {
+        display: none;
+    }
+
+    .ss-attn__item--critical .ss-attn__title::before,
+    .ss-inbox__item--critical[data-status="NEW"] .ss-inbox__sev::before,
+    body .slot-shake-effect,
+    body .matrix-toast,
+    body .radar-dot::before,
+    body .spin-animation {
+        animation: none !important;
+    }
+
+    .mobile-booking-drawer.ss-booksheet,
+    .mobile-booking-drawer.ss-booksheet.is-open,
+    body .mobile-drawer-backdrop {
+        transition: none;
     }
 }

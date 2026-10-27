@@ -5,6 +5,12 @@
 (function () {
     'use strict';
 
+    // V4: one socket per page even if the script is included twice
+    if (window.__ssRealtimeLoaded) {
+        return;
+    }
+    window.__ssRealtimeLoaded = true;
+
     let ws = null;
     let reconnectTimer = null;
     const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -19,6 +25,8 @@
         if (!toastContainer) {
             toastContainer = document.createElement('div');
             toastContainer.id = 'smartstay-realtime-toast-container';
+            toastContainer.setAttribute('role', 'status');
+            toastContainer.setAttribute('aria-live', 'polite');
             toastContainer.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:360px;pointer-events:none;';
             document.body.appendChild(toastContainer);
         }
@@ -108,16 +116,19 @@
             case 'BOOKING_CHECKED_IN':
             case 'BOOKING_UPDATED':
                 const code = data.bookingCode || 'Booking';
-                const status = data.status || 'CHECKED_IN';
-                showRealtimeToast('Booking Status Updated', `${code} transitioned to: <strong>${status}</strong>`);
+                const rawStatus = data.status || 'CHECKED_IN';
+                const label = formatBookingStatus(rawStatus);
+                showRealtimeToast('Booking Status Updated', `${escapeHtml(code)} transitioned to: <strong>${escapeHtml(label)}</strong>`);
                 
-                // If on booking detail or bookings table, highlight and update status badge
-                document.querySelectorAll(`[data-status]`).forEach(el => {
-                    if (data.status) {
-                        el.textContent = data.status;
-                        el.className = 'badge bg-primary fs-6';
-                    }
-                });
+                // Only touch status badges belonging to this specific booking
+                if (data.bookingCode && data.status) {
+                    document.querySelectorAll('[data-status][data-booking-code]').forEach(el => {
+                        if (el.getAttribute('data-booking-code') === data.bookingCode) {
+                            el.textContent = label;
+                            el.setAttribute('data-status', data.status);
+                        }
+                    });
+                }
                 break;
 
             case 'ROOM_STATUS_CHANGED':
@@ -141,12 +152,20 @@
 
             case 'ALERT_UPDATED':
             case 'ALERT_CREATED':
-                const aId = data.alertId || '';
-                const aStatus = data.status || 'UPDATED';
-                const aType = data.alertType || 'Security alert';
-                showRealtimeToast('Alert Status Updated', `${aType} ${aId ? '(#' + aId + ') ' : ''}is now <strong>${aStatus}</strong>`);
-                
+                // R10: plain-words title from the server (util.AlertTitles), never the raw code
+                const aTitle = escapeHtml(data.title || 'Security alert');
+                const aStatusText = { NEW: 'open', ACKNOWLEDGED: 'acknowledged', RESOLVED: 'resolved' }[data.status] || 'updated';
+                if (data.event === 'ALERT_CREATED') {
+                    showRealtimeToast('New alert', `<strong>${aTitle}</strong>`, false);
+                } else {
+                    showRealtimeToast('Alert updated', `${aTitle} is now <strong>${aStatusText}</strong>`);
+                }
+
                 if (data.newAlertCount !== undefined) {
+                    document.querySelectorAll('[data-alert-count]').forEach(function (b) {
+                        b.textContent = data.newAlertCount;
+                        b.style.display = data.newAlertCount > 0 ? '' : 'none';
+                    });
                     const navBadge = document.getElementById('navAlertBadge');
                     if (navBadge) {
                         if (data.newAlertCount > 0) {
@@ -169,6 +188,35 @@
                 break;
         }
     }
+
+    function formatBookingStatus(raw) {
+        if (!raw) return '';
+        const map = {
+            'PENDING_PAYMENT': 'Awaiting payment',
+            'CONFIRMED': 'Confirmed',
+            'CHECKED_IN': 'Checked in',
+            'CHECKED_OUT': 'Completed',
+            'CANCELLED': 'Cancelled',
+            'EXPIRED': 'Expired'
+        };
+        const upper = String(raw).trim().toUpperCase();
+        if (map[upper]) {
+            return map[upper];
+        }
+        const words = upper.replace(/_/g, ' ').toLowerCase();
+        return words.charAt(0).toUpperCase() + words.slice(1);
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    // R10: lets page scripts (alerts.js) reuse the same toast; pass plain text, it is escaped here
+    window.ssRealtimeToast = function (title, text, isSuccess) {
+        showRealtimeToast(escapeHtml(title), escapeHtml(text), isSuccess !== false);
+    };
 
     // Expose manual sync trigger helper
     window.triggerManualSync = function (btn) {

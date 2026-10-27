@@ -3,157 +3,173 @@
 <%@ taglib prefix="e" uri="/WEB-INF/tld/smartstay.tld" %>
 
 <t:layout title="Staff Assignments" active="admin-assignments">
-    <!-- Boutique Breadcrumb Navigation -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb boutique-breadcrumb m-0">
-            <li class="breadcrumb-item">
-                <a href="${pageContext.request.contextPath}/admin/dashboard" class="boutique-breadcrumb-link">
-                    <i class="bi bi-house-door me-1"></i>Dashboard
-                </a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">Staff Assignments</li>
-        </ol>
-    </nav>
-
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <%-- V3: same anatomy as the other admin lists. Edit is the visible action; Cancel moves to "⋯". --%>
+    <div class="ss-page-header">
         <div>
-            <h1 class="h3 mb-0">Staff Room Assignments</h1>
-            <p class="text-muted small mb-0">Manage housekeeping room assignments and cleaning sessions</p>
+            <h1 class="ss-page-header__title">Cleaning assignments</h1>
+            <p class="ss-page-header__subtitle">Who cleans which room, and when. Each assignment gives the staff member a door PIN for the shift.</p>
         </div>
-        <div>
-            <a href="${pageContext.request.contextPath}/admin/assignments/edit" class="btn btn-primary">
-                + New Assignment
-            </a>
-        </div>
+        <a href="${pageContext.request.contextPath}/admin/assignments/edit" class="btn btn-primary btn-sm">New assignment</a>
     </div>
 
-    <!-- Mobile Filter Toggle Button (< 768px) -->
-    <div class="d-md-none mb-3">
-        <button class="btn btn-outline-secondary btn-sm w-100 d-flex justify-content-between align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#assignmentFilterCollapse" aria-expanded="false" aria-controls="assignmentFilterCollapse">
-            <span><i class="bi bi-funnel me-1"></i> Filters &amp; Search</span>
-            <i class="bi bi-chevron-down"></i>
-        </button>
-    </div>
-
-    <!-- Filter Form -->
-    <div class="card mb-4 border-0 shadow-sm collapse d-md-block" id="assignmentFilterCollapse">
-        <div class="card-body">
-            <form action="${pageContext.request.contextPath}/admin/assignments" method="get" class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label small text-muted">Search Staff or Room</label>
-                    <input type="text" name="search" class="form-control form-control-sm"
-                           placeholder="Name, email, room..." value="${e:esc(search)}">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small text-muted">Status</label>
-                    <select name="status" class="form-select form-select-sm">
-                        <option value="">All Statuses</option>
-                        <option value="ASSIGNED" ${status == 'ASSIGNED' ? 'selected' : ''}>ASSIGNED</option>
-                        <option value="COMPLETED" ${status == 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
-                        <option value="CANCELLED" ${status == 'CANCELLED' ? 'selected' : ''}>CANCELLED</option>
-                        <option value="EXPIRED" ${status == 'EXPIRED' ? 'selected' : ''}>EXPIRED</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small text-muted">Staff</label>
-                    <select name="staffId" class="form-select form-select-sm">
-                        <option value="">All Staff</option>
+    <form action="${pageContext.request.contextPath}/admin/assignments" method="get" class="ss-toolbar">
+        <t:if test="${not empty status}"><input type="hidden" name="status" value="${e:esc(status)}"></t:if>
+        <div class="ss-toolbar__main">
+            <div class="ss-toolbar__search">
+                <i class="bi bi-search ss-toolbar__search-icon" aria-hidden="true"></i>
+                <label for="asgSearch" class="visually-hidden">Search assignments</label>
+                <input type="search" class="ss-toolbar__search-input" id="asgSearch" name="search" maxlength="100"
+                       placeholder="Staff name, email or room" value="${e:esc(search)}">
+            </div>
+            <div class="ss-toolbar__chips" role="group" aria-label="Assignment status">
+                <a class="ss-chip ${empty status ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/assignments?search=${e:url(search)}&amp;staffId=${staffId}&amp;roomId=${roomId}&amp;shiftDate=${shiftDate}">All</a>
+                <a class="ss-chip ${status == 'ASSIGNED' ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/assignments?search=${e:url(search)}&amp;staffId=${staffId}&amp;roomId=${roomId}&amp;shiftDate=${shiftDate}&amp;status=ASSIGNED">Assigned</a>
+                <a class="ss-chip ${status == 'COMPLETED' ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/assignments?search=${e:url(search)}&amp;staffId=${staffId}&amp;roomId=${roomId}&amp;shiftDate=${shiftDate}&amp;status=COMPLETED">Completed</a>
+                <a class="ss-chip ${status == 'EXPIRED' ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/assignments?search=${e:url(search)}&amp;staffId=${staffId}&amp;roomId=${roomId}&amp;shiftDate=${shiftDate}&amp;status=EXPIRED">Expired</a>
+                <a class="ss-chip ${status == 'CANCELLED' ? 'ss-chip--active' : ''}"
+                   href="${pageContext.request.contextPath}/admin/assignments?search=${e:url(search)}&amp;staffId=${staffId}&amp;roomId=${roomId}&amp;shiftDate=${shiftDate}&amp;status=CANCELLED">Cancelled</a>
+            </div>
+            <button class="ss-toolbar__more-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#asgMoreFilters"
+                    aria-expanded="${not empty staffId || not empty roomId || not empty shiftDate ? 'true' : 'false'}" aria-controls="asgMoreFilters">
+                <i class="bi bi-sliders" aria-hidden="true"></i>More filters
+            </button>
+        </div>
+        <div class="collapse ${not empty staffId || not empty roomId || not empty shiftDate ? 'show' : ''}" id="asgMoreFilters">
+            <div class="ss-toolbar__collapse ss-bk-more">
+                <div class="ss-bk-more__field">
+                    <label for="asgStaff" class="ss-bk-more__label">Staff</label>
+                    <select id="asgStaff" name="staffId" class="form-select form-select-sm">
+                        <option value="">Anyone</option>
                         <t:forEach items="${staffList}" var="s">
                             <option value="${s.userId}" ${staffId == s.userId ? 'selected' : ''}>${e:esc(s.fullName)}</option>
                         </t:forEach>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label small text-muted">Room</label>
-                    <select name="roomId" class="form-select form-select-sm">
-                        <option value="">All Rooms</option>
+                <div class="ss-bk-more__field">
+                    <label for="asgRoom" class="ss-bk-more__label">Room</label>
+                    <select id="asgRoom" name="roomId" class="form-select form-select-sm">
+                        <option value="">Any room</option>
                         <t:forEach items="${roomList}" var="r">
                             <option value="${r.roomId}" ${roomId == r.roomId ? 'selected' : ''}>Room ${e:esc(r.roomNumber)}</option>
                         </t:forEach>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label small text-muted">Shift Date</label>
-                    <input type="date" name="shiftDate" class="form-control form-control-sm" data-datepicker
+                <div class="ss-bk-more__field">
+                    <label for="asgDate" class="ss-bk-more__label">Shift date</label>
+                    <input type="date" id="asgDate" name="shiftDate" class="form-control form-control-sm" data-datepicker
                            value="${shiftDate != null ? shiftDate.toString() : ''}">
                 </div>
-                <div class="col-md-1 d-flex align-items-end gap-1">
-                    <button type="submit" class="btn btn-sm btn-primary w-100">Filter</button>
-                    <a href="${pageContext.request.contextPath}/admin/assignments" class="btn btn-sm btn-outline-secondary">Reset</a>
+                <div class="ss-bk-more__actions">
+                    <button type="submit" class="btn btn-primary btn-sm px-3">Apply</button>
+                    <a href="${pageContext.request.contextPath}/admin/assignments" class="btn btn-outline-soft btn-sm px-3">Clear all</a>
                 </div>
-            </form>
+            </div>
         </div>
+    </form>
+
+    <div class="ss-dev-table">
+        <t:if test="${empty assignments}">
+            <div class="ss-empty">
+                <i class="bi bi-clipboard-check ss-empty__icon" aria-hidden="true"></i>
+                <p class="ss-empty__title">No assignments found</p>
+                <p class="ss-empty__desc">Nothing matches these filters. Create an assignment when a room needs cleaning.</p>
+            </div>
+        </t:if>
+        <t:if test="${not empty assignments}">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 ss-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="ps-3">Staff</th>
+                            <th scope="col">Room</th>
+                            <th scope="col">Shift</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Note</th>
+                            <th scope="col" class="pe-3 text-end"><span class="visually-hidden">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t:forEach items="${assignments}" var="a">
+                            <tr class="${a.status == 'CANCELLED' ? 'ss-dev-row--off' : ''}">
+                                <td class="ps-3" title="${e:esc(a.staffEmail)}">
+                                    <t:if test="${a.assigned}"><a class="ss-row-link" href="${pageContext.request.contextPath}/admin/assignments/edit?id=${a.assignmentId}">${e:esc(a.staffName)}</a></t:if>
+                                    <t:if test="${!a.assigned}">${e:esc(a.staffName)}</t:if>
+                                </td>
+                                <td class="text-nowrap">
+                                    <span class="ss-bk__room">${e:esc(a.roomNumber)}</span>
+                                    <span class="ss-bk__sub">${e:esc(a.roomTitle)}</span>
+                                </td>
+                                <td class="text-nowrap ss-num">
+                                    ${e:stayLine(a.shiftStart, a.shiftEnd)}
+                                </td>
+                                <td>
+                                    <t:if test="${a.status == 'EXPIRED'}">
+                                        <span class="ss-badge ss-badge--warning">Expired</span>
+                                    </t:if>
+                                    <t:if test="${a.status != 'EXPIRED'}">
+                                        <span class="ss-dev__status">
+                                            <span class="ss-status-dot ${a.status == 'COMPLETED' ? 'ss-status-dot--ok' : (a.status == 'ASSIGNED' ? 'ss-status-dot--warn' : 'ss-status-dot--muted')}" aria-hidden="true"></span>
+                                            ${e:esc(e:humanStatus(a.status))}
+                                        </span>
+                                    </t:if>
+                                    <t:if test="${a.status == 'ASSIGNED' and a.sessionStatus == 'ACTIVE'}">
+                                        <div class="ss-act__sub">Cleaning now</div>
+                                    </t:if>
+                                    <t:if test="${a.status != 'ASSIGNED' and not empty a.sessionStatus and a.sessionStatus != a.status and a.sessionStatus != 'PENDING'}">
+                                        <div class="ss-act__sub">Cleaning: ${e:esc(e:humanStatus(a.sessionStatus))}</div>
+                                    </t:if>
+                                </td>
+                                <td class="ss-act__sub text-truncate" style="max-width: 200px;" title="${not ((a.status == 'COMPLETED' and a.note == 'Completed on schedule') or (a.status == 'EXPIRED' and a.note == 'Expired')) ? e:esc(a.note) : ''}">
+                                    <t:if test="${not ((a.status == 'COMPLETED' and a.note == 'Completed on schedule') or (a.status == 'EXPIRED' and a.note == 'Expired'))}">
+                                        ${e:esc(a.note)}
+                                    </t:if>
+                                </td>
+                                <td class="pe-3 text-end text-nowrap">
+                                    <t:if test="${a.assigned}">
+                                        <div class="dropdown d-inline-block ss-row-menu">
+                                            <button class="btn-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                                    aria-label="More actions for ${e:esc(a.staffName)}, room ${e:esc(a.roomNumber)}">
+                                                <i class="bi bi-three-dots" aria-hidden="true"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li><a class="dropdown-item" href="${pageContext.request.contextPath}/admin/assignments/edit?id=${a.assignmentId}">Edit</a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <form action="${pageContext.request.contextPath}/admin/assignments/cancel" method="post" class="m-0"
+                                                          onsubmit="return confirm('Cancel this assignment? The staff door PIN stops working.');">
+                                                        <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
+                                                        <input type="hidden" name="id" value="${a.assignmentId}">
+                                                        <button type="submit" class="dropdown-item dropdown-item--destructive">Cancel assignment</button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </t:if>
+                                </td>
+                            </tr>
+                        </t:forEach>
+                    </tbody>
+                </table>
+            </div>
+        </t:if>
     </div>
 
-    <!-- Assignments Table -->
-    <div class="card border-0 shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light text-muted small text-uppercase">
-                    <tr>
-                        <th>ID</th>
-                        <th>Staff Member</th>
-                        <th>Room</th>
-                        <th>Shift Window</th>
-                        <th>Status</th>
-                        <th>Session</th>
-                        <th>Note</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <t:if test="${empty assignments}">
-                        <tr><td colspan="8" class="text-center py-4 text-muted">No staff assignments found matching criteria.</td></tr>
-                    </t:if>
-                    <t:forEach items="${assignments}" var="a">
-                        <tr>
-                            <td><strong>#${a.assignmentId}</strong></td>
-                            <td><div class="fw-bold">${e:esc(a.staffName)}</div><div class="small text-muted">${e:esc(a.staffEmail)}</div></td>
-                            <td>
-                                <div class="fw-semibold small">${e:esc(a.roomTitle)}</div>
-                                <span class="badge bg-light text-dark border">Room ${e:esc(a.roomNumber)}</span>
-                            </td>
-                            <td class="small">${e:datetime(a.shiftStart)}<br><span class="text-muted">to ${e:datetime(a.shiftEnd)}</span></td>
-                            <td><span class="badge-status status-${a.status}">${e:esc(a.status)}</span></td>
-                            <td><span class="badge-status status-${a.sessionStatus != null ? a.sessionStatus : 'PENDING'}">${a.sessionStatus != null ? e:esc(a.sessionStatus) : "PENDING"}</span></td>
-                            <td class="small text-truncate" style="max-width: 180px;" title="${e:esc(a.note)}">${e:esc(a.note)}</td>
-                            <td class="text-end">
-                                <t:if test="${a.assigned}">
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="${pageContext.request.contextPath}/admin/assignments/edit?id=${a.assignmentId}" class="btn btn-outline-primary">Edit</a>
-                                        <form action="${pageContext.request.contextPath}/admin/assignments/cancel" method="post" class="d-inline" onsubmit="return confirm('Cancel this assignment and revoke staff PIN?');">
-                                            <input type="hidden" name="_csrf" value="${e:esc(not empty _csrf ? _csrf : sessionScope._csrf)}">
-                                            <input type="hidden" name="id" value="${a.assignmentId}">
-                                            <button type="submit" class="btn btn-outline-danger">Cancel</button>
-                                        </form>
-                                    </div>
-                                </t:if>
-                                <t:if test="${not a.assigned}">
-                                    <span class="text-muted small">-</span>
-                                </t:if>
-                            </td>
-                        </tr>
-                    </t:forEach>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Pagination -->
-        <div class="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-            <span class="small text-muted">
-                Showing ${pageResult.fromIndex} - ${pageResult.toIndex} of ${pageResult.totalItems} assignments
-            </span>
+    <t:if test="${pageResult.totalItems > 0}">
+        <nav class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3" aria-label="Assignments pages">
+            <span class="ss-act__sub">${pageResult.fromIndex}&ndash;${pageResult.toIndex} of ${pageResult.totalItems}</span>
             <ul class="pagination pagination-sm mb-0">
                 <li class="page-item ${!pageResult.hasPrevious() ? 'disabled' : ''}">
-                    <a class="page-link" href="${pageContext.request.contextPath}/admin/assignments?page=${pageResult.page - 1}&search=${e:esc(search)}&status=${e:esc(status)}&staffId=${staffId}&roomId=${roomId}&shiftDate=${shiftDate}">Previous</a>
+                    <a class="page-link" href="${pageContext.request.contextPath}/admin/assignments?page=${pageResult.page - 1}&amp;search=${e:url(search)}&amp;status=${e:url(status)}&amp;staffId=${staffId}&amp;roomId=${roomId}&amp;shiftDate=${shiftDate}">Previous</a>
                 </li>
-                <li class="page-item active">
-                    <span class="page-link">${pageResult.page}</span>
-                </li>
+                <li class="page-item active" aria-current="page"><span class="page-link">${pageResult.page}</span></li>
                 <li class="page-item ${!pageResult.hasNext() ? 'disabled' : ''}">
-                    <a class="page-link" href="${pageContext.request.contextPath}/admin/assignments?page=${pageResult.page + 1}&search=${e:esc(search)}&status=${e:esc(status)}&staffId=${staffId}&roomId=${roomId}&shiftDate=${shiftDate}">Next</a>
+                    <a class="page-link" href="${pageContext.request.contextPath}/admin/assignments?page=${pageResult.page + 1}&amp;search=${e:url(search)}&amp;status=${e:url(status)}&amp;staffId=${staffId}&amp;roomId=${roomId}&amp;shiftDate=${shiftDate}">Next</a>
                 </li>
             </ul>
-        </div>
-    </div>
+        </nav>
+    </t:if>
 </t:layout>

@@ -253,7 +253,7 @@ public class CredentialService {
                     return null;
                 }
                 Timestamp vu = rs.getTimestamp("valid_until");
-                if (vu != null && LocalDateTime.now().isAfter(vu.toLocalDateTime())) {
+                if (vu != null && util.ClockService.now().isAfter(vu.toLocalDateTime())) {
                     return null;
                 }
 

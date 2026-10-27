@@ -37,6 +37,49 @@ public class MqttService {
         return client;
     }
 
+    /** Opens the broker connection in the background at start-up so the first remote command is not slow. */
+    public static void warmUp() {
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                getClient();
+            }
+        }, "mqtt-warmup");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /**
+     * Sends a signed remote command (UNLOCK or SILENCE) to topic smartstay/device/{deviceId}/cmd.
+     * Payload {"cmd","ts","nonce","sig"}: sig = HMAC-SHA256(key = api_key_hash, "cmd|ts|nonce")
+     * (see util.IotDevices.signCommand). Never retained, QoS 1; the ESP32 rejects old or reused commands.
+     *
+     * @return true when the broker accepted the message
+     */
+    public static synchronized boolean publishCommand(String deviceId, String command, String apiKeyHash) {
+        MqttClient mqtt = getClient();
+        if (mqtt == null || !mqtt.isConnected()) {
+            LOGGER.warning("MQTT client not connected, command " + command + " for " + deviceId + " not sent");
+            return false;
+        }
+        try {
+            long ts = java.time.Instant.now().getEpochSecond();
+            String nonce = Long.toHexString(new java.security.SecureRandom().nextLong());
+            String sig = util.IotDevices.signCommand(apiKeyHash, command, ts, nonce);
+            String payload = "{\"cmd\":\"" + command + "\",\"ts\":" + ts + ",\"nonce\":\"" + nonce
+                    + "\",\"sig\":\"" + sig + "\"}";
+            MqttMessage message = new MqttMessage(payload.getBytes("UTF-8"));
+            message.setQos(1);
+            message.setRetained(false);
+            mqtt.publish("smartstay/device/" + deviceId + "/cmd", message);
+            LOGGER.info("Published remote command " + command + " to " + deviceId);
+            return true;
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to publish command " + command + " for " + deviceId, e);
+            return false;
+        }
+    }
+
     /**
      * Publishes a buzzer alarm command to the specified IoT device topic.
      *

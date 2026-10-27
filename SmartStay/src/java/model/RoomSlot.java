@@ -118,6 +118,7 @@ public class RoomSlot implements Serializable {
     }
 
     private String todayStatus;
+    private String todayDifference;
 
     public String getTodayStatus() {
         return todayStatus != null ? todayStatus : "AVAILABLE";
@@ -127,9 +128,100 @@ public class RoomSlot implements Serializable {
         this.todayStatus = todayStatus;
     }
 
+    public String getTodayDifference() {
+        if (todayDifference != null) {
+            return todayDifference;
+        }
+        if (!active) {
+            return null;
+        }
+        if ("BOOKED".equalsIgnoreCase(todayStatus)) {
+            return "Today: booked";
+        }
+        if ("NEEDS_CLEANING".equalsIgnoreCase(todayStatus) && "AVAILABLE".equalsIgnoreCase(status)) {
+            return "Today: cleaning";
+        }
+        if ("MAINTENANCE".equalsIgnoreCase(todayStatus) && "AVAILABLE".equalsIgnoreCase(status)) {
+            return "Today: maintenance";
+        }
+        return null;
+    }
+
+    public void setTodayDifference(String todayDifference) {
+        this.todayDifference = todayDifference;
+    }
+
+    /**
+     * Computes the difference between today's operational state and the row's own controls (Round 3b item 5).
+     * Returns a note ONLY when today's state differs, e.g. "Today: not offered (room hidden)",
+     * "Today: booked", "Today: maintenance (room in maintenance)", "Today: cleaning (room needs cleaning)".
+     * Returns null for normal available slots and normal inactive slots.
+     */
+    public void computeTodayDifference(String roomStatus, boolean roomActive) {
+        this.todayDifference = calculateTodayDifference(roomStatus, roomActive);
+    }
+
+    public String calculateTodayDifference(String roomStatus, boolean roomActive) {
+        if (!active) {
+            return null;
+        }
+        if (!roomActive) {
+            return "Today: not offered (room hidden)";
+        }
+        if ("BOOKED".equalsIgnoreCase(todayStatus)) {
+            return "Today: booked";
+        }
+        if ("MAINTENANCE".equalsIgnoreCase(roomStatus)) {
+            if (!"MAINTENANCE".equalsIgnoreCase(status)) {
+                return "Today: maintenance (room in maintenance)";
+            }
+            return null;
+        }
+        if ("NEEDS_CLEANING".equalsIgnoreCase(roomStatus)) {
+            if ("AVAILABLE".equalsIgnoreCase(status)) {
+                return "Today: cleaning (room needs cleaning)";
+            }
+            return null;
+        }
+        return null;
+    }
+
     /**
      * Determines operational status considering holds for a target date.
      */
+    /**
+     * Slot state as shown on the admin room list and the Slots page (Task R8): the ROOM status
+     * overrides the slot. An inactive room shows every slot as INACTIVE, a MAINTENANCE room shows
+     * MAINTENANCE everywhere, a NEEDS_CLEANING room shows its free slots as NEEDS_CLEANING
+     * (booked slots stay BOOKED).
+     */
+    public static String effectiveForRoom(String slotState, String roomStatus, boolean roomActive) {
+        if (!roomActive) {
+            return "INACTIVE";
+        }
+        if ("MAINTENANCE".equalsIgnoreCase(roomStatus)) {
+            return "MAINTENANCE";
+        }
+        if ("NEEDS_CLEANING".equalsIgnoreCase(roomStatus) && "AVAILABLE".equalsIgnoreCase(slotState)) {
+            return "NEEDS_CLEANING";
+        }
+        return slotState;
+    }
+
+    /** Human label of a display state: Available, Booked, Cleaning, Maintenance, Not offered, Inactive. */
+    public static String stateLabel(String state) {
+        if ("BOOKED".equalsIgnoreCase(state)) return "Booked";
+        if ("NEEDS_CLEANING".equalsIgnoreCase(state)) return "Cleaning";
+        if ("MAINTENANCE".equalsIgnoreCase(state)) return "Maintenance";
+        if ("INACTIVE".equalsIgnoreCase(state)) return "Not offered";
+        return "Available";
+    }
+
+    /** Label of todayStatus for tooltips, e.g. "Morning: Available". */
+    public String getTodayLabel() {
+        return stateLabel(getTodayStatus());
+    }
+
     public String getEffectiveStatus(Set<Long> heldSlotIds) {
         if (!active) {
             return "INACTIVE";

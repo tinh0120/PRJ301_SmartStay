@@ -5,14 +5,11 @@
     <!-- Header Banner -->
     <div class="contact-banner">
         <div class="container py-5">
-            <div class="contact-eyebrow-wrap">
-                <span class="contact-eyebrow">LEGAL &amp; POLICIES</span>
-            </div>
-            <h1 class="contact-title" id="terms-heading">
-                Privacy Policy &amp; <span class="contact-title-accent">Terms</span>
+            <h1 class="contact-title ss-serif" id="terms-heading">
+                Terms, cancellation and privacy
             </h1>
             <p class="contact-lead mb-0">
-                Transparent, secure, and dedicated to elevating your smart stay experience at Tini SmartStay.
+                How booking, payment, cancellation, door access and your personal data work at Tini SmartStay.
             </p>
         </div>
     </div>
@@ -138,14 +135,14 @@
                                 <tbody>
                                     <tr>
                                         <td class="fw-semibold">
-                                            <i class="bi bi-check-circle-fill text-success me-1"></i> More than 24 hours prior to check-in time
+                                            <i class="bi bi-check-circle-fill text-success me-1"></i> At least ${e:cancelFreeHours()} hours before your first booked slot
                                         </td>
                                         <td class="text-success fw-bold">100% Refund</td>
                                         <td><span class="badge bg-success-subtle text-success border border-success-subtle">Free Cancellation</span></td>
                                     </tr>
                                     <tr>
                                         <td class="fw-semibold">
-                                            <i class="bi bi-x-circle-fill text-danger me-1"></i> Within 24 hours prior to check-in time
+                                            <i class="bi bi-x-circle-fill text-danger me-1"></i> Less than ${e:cancelFreeHours()} hours before your first booked slot
                                         </td>
                                         <td class="text-danger fw-bold">Non-refundable (0%)</td>
                                         <td><span class="badge bg-danger-subtle text-danger border border-danger-subtle">Non-refundable</span></td>
@@ -233,7 +230,7 @@
                                     <i class="bi bi-telephone me-1"></i> 0344 493 658
                                 </a>
                                 <a href="${pageContext.request.contextPath}/contact" class="btn btn-outline-light btn-sm fw-medium px-3">
-                                    Contact Us Directly &rarr;
+                                    Contact us
                                 </a>
                             </div>
                         </div>

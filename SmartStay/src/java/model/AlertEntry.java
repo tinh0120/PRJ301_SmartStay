@@ -220,4 +220,42 @@ public class AlertEntry implements Serializable {
     public void setCreatedAtFormatted(String createdAtFormatted) {
         this.createdAtFormatted = createdAtFormatted;
     }
+
+    // --- R10 display fields ---
+    private String deviceName;
+    private String roomNumber;
+    private String bookingCode;
+
+    public String getDeviceName() { return deviceName; }
+    public void setDeviceName(String deviceName) { this.deviceName = deviceName; }
+    public String getRoomNumber() { return roomNumber; }
+    public void setRoomNumber(String roomNumber) { this.roomNumber = roomNumber; }
+    public String getBookingCode() { return bookingCode; }
+    public void setBookingCode(String bookingCode) { this.bookingCode = bookingCode; }
+
+    /** True only when snapshot_path is set, the file exists and the viewer may see snapshots (set by the servlet). */
+    private boolean snapshotAvailable;
+
+    public boolean isSnapshotAvailable() { return snapshotAvailable; }
+    public void setSnapshotAvailable(boolean snapshotAvailable) { this.snapshotAvailable = snapshotAvailable; }
+
+    /** Plain-words title from the central map (util.AlertTitles); the raw code stays in the detail view. */
+    public String getTitle() {
+        return util.AlertTitles.title(alertType);
+    }
+
+    /** Where it happened: device name, else room, else zone, else booking. */
+    public String getSource() {
+        if (deviceName != null && !deviceName.trim().isEmpty()) return deviceName;
+        if (deviceId != null && !deviceId.trim().isEmpty()) return deviceId;
+        if (roomNumber != null && !roomNumber.trim().isEmpty()) return "Room " + roomNumber;
+        if (zoneId != null && !zoneId.trim().isEmpty()) return util.ActivityLog.zoneLabel(zoneId);
+        if (bookingCode != null && !bookingCode.trim().isEmpty()) return "Booking " + bookingCode;
+        return "";
+    }
+
+    /** ss-badge / severity modifier: low, medium, high or critical. */
+    public String getSeverityTone() {
+        return (severity == null) ? "low" : severity.trim().toLowerCase();
+    }
 }

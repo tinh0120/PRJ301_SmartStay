@@ -64,10 +64,47 @@
         }
     }
 
+    /**
+     * V4: the vendor files are loaded only on pages that have a date field. The stylesheet goes
+     * in front of app.css so the boutique theme in modern-ui.css still wins over it.
+     */
+    function loadFlatpickr(done) {
+        if (typeof flatpickr === 'function') {
+            done();
+            return;
+        }
+        if (!document.querySelector('input[data-datepicker]')) {
+            return;
+        }
+        var ctxMeta = document.querySelector('meta[name="ctx"]');
+        var base = (ctxMeta ? ctxMeta.getAttribute('content') : '') + '/assets/vendor/flatpickr/';
+
+        if (!document.querySelector('link[href$="flatpickr.min.css"]')) {
+            var css = document.createElement('link');
+            css.rel = 'stylesheet';
+            css.href = base + 'flatpickr.min.css';
+            var appCss = document.querySelector('link[href$="/assets/css/app.css"]');
+            if (appCss) {
+                appCss.parentNode.insertBefore(css, appCss);
+            } else {
+                document.head.appendChild(css);
+            }
+        }
+
+        var js = document.createElement('script');
+        js.src = base + 'flatpickr.min.js';
+        js.onload = done;
+        document.body.appendChild(js);
+    }
+
+    function start() {
+        loadFlatpickr(initFlatpickrInputs);
+    }
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initFlatpickrInputs);
+        document.addEventListener('DOMContentLoaded', start);
     } else {
-        initFlatpickrInputs();
+        start();
     }
 
     window.SmartStayDatePicker = {

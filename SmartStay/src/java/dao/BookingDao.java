@@ -31,7 +31,22 @@ import java.util.Set;
 public class BookingDao {
 
     public static final Set<String> ADMIN_SORT_WHITELIST = new HashSet<>(Arrays.asList(
-            "date", "created", "total", "status", "room", "guest"
+            "upcoming", "date", "created", "total", "status", "room", "guest"
+    ));
+
+    /**
+     * Shared SQL predicates (alias "b" = BOOKING) so the dashboard KPIs and the Bookings page
+     * chips count exactly the same rows (R6/R7). Each takes ONE date parameter (today).
+     */
+    public static final String CHECKIN_TODAY_PREDICATE =
+            "(CAST(b.checkin_at AS date) = ? AND (b.status IN ('CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT') "
+            + "OR (b.status = 'EXPIRED' AND b.expire_reason = 'NO_SHOW')))";
+    public static final String CHECKOUT_TODAY_PREDICATE =
+            "(CAST(b.checkout_at AS date) = ? AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'))";
+
+    /** Quick chips of the admin Bookings toolbar (R7); the last two are opened from dashboard KPIs. */
+    public static final Set<String> ADMIN_CHIPS = new HashSet<>(Arrays.asList(
+            "today", "upcoming", "refund", "noshow", "checkins_today", "checkouts_today"
     ));
 
     private static final Set<String> ALLOWED_STATUSES = new HashSet<>(Arrays.asList(
@@ -42,12 +57,49 @@ public class BookingDao {
     }
 
     /**
+     * Number of bookings per My bookings tab for one guest: keys upcoming, past, cancelled, all
+     * (same rules as the "view" filter of findPageByGuest).
+     */
+    public java.util.Map<String, Integer> countGuestViews(long guestId) throws SQLException {
+        String sql = "SELECT "
+                + "SUM(CASE WHEN status IN ('PENDING_PAYMENT', 'CONFIRMED', 'CHECKED_IN') THEN 1 ELSE 0 END) AS upcoming, "
+                + "SUM(CASE WHEN status = 'CHECKED_OUT' OR (status = 'EXPIRED' AND expire_reason = 'NO_SHOW') THEN 1 ELSE 0 END) AS past, "
+                + "SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled, "
+                + "COUNT(*) AS total_all "
+                + "FROM BOOKING WHERE guest_id = ?";
+        java.util.Map<String, Integer> counts = new java.util.HashMap<>();
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, guestId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    counts.put("upcoming", rs.getInt("upcoming"));
+                    counts.put("past", rs.getInt("past"));
+                    counts.put("cancelled", rs.getInt("cancelled"));
+                    counts.put("all", rs.getInt("total_all"));
+                }
+            }
+        }
+        return counts;
+    }
+
+    /**
      * Finds a paginated list of bookings belonging to a specific guest.
      */
     public PageResult<Booking> findPageByGuest(PageRequest pr, long guestId) throws SQLException {
         StringBuilder where = new StringBuilder(" WHERE b.guest_id = ? ");
         List<Object> params = new ArrayList<>();
         params.add(guestId);
+
+        // My bookings tabs (round 3, item 4). Unpaid holds that expired show only under "all".
+        String view = pr.getFilter("view");
+        if ("upcoming".equals(view)) {
+            where.append(" AND b.status IN ('PENDING_PAYMENT', 'CONFIRMED', 'CHECKED_IN') ");
+        } else if ("past".equals(view)) {
+            where.append(" AND (b.status = 'CHECKED_OUT' OR (b.status = 'EXPIRED' AND b.expire_reason = 'NO_SHOW')) ");
+        } else if ("cancelled".equals(view)) {
+            where.append(" AND b.status = 'CANCELLED' ");
+        }
 
         // Filter: status (exact match, verified against allowed statuses)
         String status = pr.getFilter("status");
@@ -178,10 +230,13 @@ public class BookingDao {
      * Loads a single booking by ID with joined room number and payment status.
      */
     public Booking findById(long bookingId) throws SQLException {
+        // Guest + creator columns: the admin detail page shows them (mapBooking reads them when present)
         String sql = "SELECT b.booking_id, b.booking_code, b.guest_id, b.room_id, r.room_number, "
-                + "b.slot_date, b.checkin_at, b.checkout_at, b.subtotal_amount, b.discount_percent, "
+                + "u.full_name AS guest_name, u.email AS guest_email, u.phone AS guest_phone, "
+                + "b.slot_date, b.checkin_at, b.checkout_at, b.actual_checkin_at, b.actual_checkout_at, "
+                + "b.subtotal_amount, b.discount_percent, "
                 + "b.discount_amount, b.total_amount, b.status, b.allow_early_checkin, b.expire_reason, b.payment_deadline, "
-                + "b.note, b.cancel_reason, b.cancelled_at, b.cancelled_by, b.created_at, "
+                + "b.note, b.cancel_reason, b.cancelled_at, b.cancelled_by, b.created_by, c.full_name AS creator_name, b.created_at, "
                 + "COALESCE(p.status, 'NONE') AS payment_status, "
                 + "STUFF((SELECT '+' + rts.slot_code FROM BOOKING_SLOT bs "
                 + "       JOIN ROOM_TIME_SLOT rts ON bs.room_slot_id = rts.room_slot_id "
@@ -189,6 +244,8 @@ public class BookingDao {
                 + "       FOR XML PATH('')), 1, 1, '') AS slots_summary "
                 + "FROM BOOKING b "
                 + "JOIN ROOM r ON b.room_id = r.room_id "
+                + "LEFT JOIN APP_USER u ON b.guest_id = u.user_id "
+                + "LEFT JOIN APP_USER c ON b.created_by = c.user_id "
                 + "OUTER APPLY (SELECT TOP 1 status FROM PAYMENT WHERE booking_id = b.booking_id ORDER BY payment_id DESC) p "
                 + "WHERE b.booking_id = ?";
 
@@ -284,7 +341,7 @@ public class BookingDao {
         detail.setSlots(slotRows);
 
         // Server-side compute canCancel
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = util.ClockService.now();
         boolean cancellable = (Booking.STATUS_PENDING_PAYMENT.equalsIgnoreCase(booking.getStatus())
                 || Booking.STATUS_CONFIRMED.equalsIgnoreCase(booking.getStatus()))
                 && booking.getCheckinAt() != null
@@ -354,6 +411,28 @@ public class BookingDao {
                     + "AND EXISTS (SELECT 1 FROM BOOKING_SLOT bs WHERE bs.booking_id = b.booking_id AND bs.hold_status = 'HELD') ");
         }
 
+        // Filter: quick chip (R7), business time from the virtual clock
+        java.time.LocalDateTime now = util.ClockService.now();
+        String chip = pr.getFilter("chip").toLowerCase();
+        if ("today".equals(chip)) {
+            where.append(" AND (").append(CHECKIN_TODAY_PREDICATE).append(" OR ").append(CHECKOUT_TODAY_PREDICATE).append(") ");
+            params.add(Date.valueOf(now.toLocalDate()));
+            params.add(Date.valueOf(now.toLocalDate()));
+        } else if ("checkins_today".equals(chip)) {
+            where.append(" AND ").append(CHECKIN_TODAY_PREDICATE).append(" ");
+            params.add(Date.valueOf(now.toLocalDate()));
+        } else if ("checkouts_today".equals(chip)) {
+            where.append(" AND ").append(CHECKOUT_TODAY_PREDICATE).append(" ");
+            params.add(Date.valueOf(now.toLocalDate()));
+        } else if ("upcoming".equals(chip)) {
+            where.append(" AND b.status = 'CONFIRMED' AND b.checkin_at >= ? ");
+            params.add(Timestamp.valueOf(now));
+        } else if ("refund".equals(chip)) {
+            where.append(" AND p.status = 'REFUND_PENDING' ");
+        } else if ("noshow".equals(chip)) {
+            where.append(" AND b.status = 'EXPIRED' AND b.expire_reason = 'NO_SHOW' ");
+        }
+
         // Filter: keyword (booking_code, guest name, guest email, room number)
         String keyword = pr.getKeyword();
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -419,6 +498,13 @@ public class BookingDao {
 
         String dir = "ASC".equalsIgnoreCase(pr.getDir()) ? "ASC" : "DESC";
         String orderByClause = " ORDER BY " + sortCol + " " + dir + ", b.booking_id DESC ";
+        boolean upcomingSort = "upcoming".equals(reqSort);
+        if (upcomingSort) {
+            // R7 default: stays that are still ahead or running, nearest check-in first; then newest
+            orderByClause = " ORDER BY CASE WHEN b.status IN ('PENDING_PAYMENT', 'CONFIRMED', 'CHECKED_IN') AND b.checkout_at >= ? THEN 0 ELSE 1 END, "
+                    + "CASE WHEN b.status IN ('PENDING_PAYMENT', 'CONFIRMED', 'CHECKED_IN') AND b.checkout_at >= ? THEN b.checkin_at END ASC, "
+                    + "b.created_at DESC, b.booking_id DESC ";
+        }
 
         String selectSql = "SELECT b.booking_id, b.booking_code, b.guest_id, b.room_id, r.room_number, "
                 + "u.full_name AS guest_name, u.email AS guest_email, u.phone AS guest_phone, "
@@ -447,6 +533,10 @@ public class BookingDao {
             int pIndex = 1;
             for (Object p : params) {
                 ps.setObject(pIndex++, p);
+            }
+            if (upcomingSort) {
+                ps.setTimestamp(pIndex++, Timestamp.valueOf(now));
+                ps.setTimestamp(pIndex++, Timestamp.valueOf(now));
             }
             ps.setInt(pIndex++, pr.getOffset());
             ps.setInt(pIndex, pr.getSize());
@@ -683,18 +773,26 @@ public class BookingDao {
         counts.put("CONFIRMED", 0);
         counts.put("CHECKED_IN", 0);
         counts.put("CHECKED_OUT", 0);
+        counts.put("CANCELLED", 0);
+        counts.put("EXPIRED", 0);
         counts.put("NOSHOW_HELD", 0);
 
+        // R7 fix: SQL Server rejects a subquery inside SUM() (error 130), which made this method
+        // throw and every tab show 0. The EXISTS flag is now computed in a derived table first.
+        // Counts are independent of the page's search/filters.
         String sql = "SELECT "
                 + "COUNT(*) AS total_all, "
-                + "SUM(CASE WHEN b.status = 'PENDING_PAYMENT' THEN 1 ELSE 0 END) AS pending_payment, "
-                + "SUM(CASE WHEN b.status = 'CONFIRMED' THEN 1 ELSE 0 END) AS confirmed, "
-                + "SUM(CASE WHEN b.status = 'CHECKED_IN' THEN 1 ELSE 0 END) AS checked_in, "
-                + "SUM(CASE WHEN b.status = 'CHECKED_OUT' THEN 1 ELSE 0 END) AS checked_out, "
-                + "SUM(CASE WHEN b.status = 'EXPIRED' AND b.expire_reason = 'NO_SHOW' "
-                + "         AND EXISTS (SELECT 1 FROM BOOKING_SLOT bs WHERE bs.booking_id = b.booking_id AND bs.hold_status = 'HELD') "
-                + "         THEN 1 ELSE 0 END) AS noshow_held "
-                + "FROM BOOKING b";
+                + "SUM(CASE WHEN x.status = 'PENDING_PAYMENT' THEN 1 ELSE 0 END) AS pending_payment, "
+                + "SUM(CASE WHEN x.status = 'CONFIRMED' THEN 1 ELSE 0 END) AS confirmed, "
+                + "SUM(CASE WHEN x.status = 'CHECKED_IN' THEN 1 ELSE 0 END) AS checked_in, "
+                + "SUM(CASE WHEN x.status = 'CHECKED_OUT' THEN 1 ELSE 0 END) AS checked_out, "
+                + "SUM(CASE WHEN x.status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled, "
+                + "SUM(CASE WHEN x.status = 'EXPIRED' THEN 1 ELSE 0 END) AS expired, "
+                + "SUM(CASE WHEN x.status = 'EXPIRED' AND x.expire_reason = 'NO_SHOW' AND x.has_held = 1 THEN 1 ELSE 0 END) AS noshow_held "
+                + "FROM (SELECT b.status, b.expire_reason, "
+                + "        CASE WHEN EXISTS (SELECT 1 FROM BOOKING_SLOT bs WHERE bs.booking_id = b.booking_id AND bs.hold_status = 'HELD') "
+                + "             THEN 1 ELSE 0 END AS has_held "
+                + "      FROM BOOKING b) x";
 
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
@@ -705,6 +803,8 @@ public class BookingDao {
                 counts.put("CONFIRMED", rs.getInt("confirmed"));
                 counts.put("CHECKED_IN", rs.getInt("checked_in"));
                 counts.put("CHECKED_OUT", rs.getInt("checked_out"));
+                counts.put("CANCELLED", rs.getInt("cancelled"));
+                counts.put("EXPIRED", rs.getInt("expired"));
                 counts.put("NOSHOW_HELD", rs.getInt("noshow_held"));
             }
         }

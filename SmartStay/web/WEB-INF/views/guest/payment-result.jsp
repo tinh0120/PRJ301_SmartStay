@@ -60,7 +60,7 @@
                                 <div class="d-inline-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success rounded-circle mb-3" style="width: 72px; height: 72px;">
                                     <i class="bi bi-check-circle-fill fs-1"></i>
                                 </div>
-                                <h1 class="h3 fw-bold text-dark mb-1">Payment Confirmed!</h1>
+                                <h1 class="h3 text-dark mb-1">Payment received. Your room is booked.</h1>
                                 <p class="text-muted small mb-0">
                                     Your reservation <strong>${e:esc(bookingCode)}</strong> is confirmed and door access credentials have been activated.
                                 </p>
@@ -69,7 +69,7 @@
                             <!-- Booking Overview Summary -->
                             <div class="card border rounded-3 p-3 mb-4 bg-milk">
                                 <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <span class="small fw-semibold text-muted text-uppercase" style="letter-spacing: 0.05em;">Reservation Details</span>
+                                    <span class="small fw-semibold text-muted">Your booking</span>
                                     <span class="font-monospace fw-bold text-caramel">${e:esc(bookingCode)}</span>
                                 </div>
                                 <div class="fs-6 fw-bold text-dark mb-1">
@@ -102,32 +102,38 @@
                             </div>
 
                             <!-- Large PIN Display Card -->
-                            <div class="pin-display-box">
-                                <div class="small fw-bold text-muted text-uppercase mb-1" style="letter-spacing: 0.1em; font-size: 0.78rem;">
-                                    Main Entrance Door PIN
+                            <%-- V2 signature moment 2: Digital Keycard. #doorPinDisplay, .btn-copy-field and
+                                 data-copy-value are unchanged for mockpay.js. --%>
+                            <div class="pin-display-box ss-pin-vault" aria-label="Digital keycard">
+                                <div class="ss-pin-vault__header">
+                                    <span class="ss-pin-vault__brand">Tini SmartStay keycard</span>
+                                    <t:if test="${not empty pinDetails}"><span class="ss-pin-vault__state">Active</span></t:if>
                                 </div>
+                                <div class="ss-pin-vault__suite">${e:esc(e:roomName(roomNumber))} &ndash; Room ${e:esc(roomNumber)}</div>
 
                                 <t:if test="${not empty pinDetails}">
-                                    <div class="pin-code-large font-monospace" id="doorPinDisplay">
-                                        ${pinDetails.formattedPin}
+                                    <div class="ss-pin-vault__label">Main entrance door PIN</div>
+                                    <div class="ss-pin-vault__display">
+                                        <div class="pin-code-large ss-pin-vault__digits ss-pin-vault__digits--reveal" id="doorPinDisplay">
+                                            ${pinDetails.formattedPin}
+                                        </div>
+                                        <div class="ss-pin-vault__actions">
+                                            <button type="button" class="btn btn-sm btn-copy-field ss-pin-vault__copy px-3" data-copy-value="${pinDetails.rawPin}">
+                                                <i class="bi bi-copy me-1" aria-hidden="true"></i><span>Copy PIN</span>
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    <div class="d-flex align-items-center justify-content-center gap-2 mt-2">
-                                        <button type="button" class="btn btn-sm btn-outline-soft btn-copy-field px-3" data-copy-value="${pinDetails.rawPin}" style="min-height: 38px;">
-                                            <i class="bi bi-copy me-1"></i><span>Copy PIN</span>
-                                        </button>
-                                    </div>
-
-                                    <div class="small text-muted mt-3" style="font-size: 0.8rem;">
-                                        <i class="bi bi-shield-check text-success me-1"></i>Valid from
-                                        <strong>${e:datetime(pinDetails.validFrom)}</strong> until <strong>${e:datetime(pinDetails.validUntil)}</strong>
+                                    <div class="ss-pin-vault__meta">
+                                        <span>Works from <strong>${e:datetime(pinDetails.validFrom)}</strong></span>
+                                        <span>until <strong>${e:datetime(pinDetails.validUntil)}</strong></span>
                                     </div>
                                 </t:if>
 
                                 <t:if test="${empty pinDetails}">
-                                    <div class="py-2">
-                                        <p class="text-muted small mb-2">Your door PIN has either expired or is being generated.</p>
-                                        <p class="small text-muted">A copy of your credentials has also been dispatched to your email address.</p>
+                                    <div class="ss-pin-vault__note">
+                                        <p class="mb-2">Your door PIN is not shown here: it has expired or is still being created.</p>
+                                        <p class="mb-0">Open My bookings in a minute, or check the e-mail we sent you.</p>
                                     </div>
                                 </t:if>
                             </div>

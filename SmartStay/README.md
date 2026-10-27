@@ -1,164 +1,150 @@
 # SmartStay - Automated Homestay Management System
 
-SmartStay (Tini SmartStay) is an intelligent, self-service homestay web application designed for automated boutique accommodation operations. Built on a pure Java MVC architecture (Servlet 4.0, JSP 2.3, EL 3.0, custom tag libraries), SmartStay provides time-slot room booking, automated smart lock door PIN generation, housekeeping task assignment, device health tracking, real-time security alerts, and revenue reporting.
+SmartStay (Tini SmartStay) is a self-service homestay web application. Guests book a room by time slot
+(S1 Morning, S2 Afternoon, S3 Evening, S4 Overnight; hours differ per room), pay through a PayOS-style
+sandbox, and open the door with a 6-digit PIN checked by a real ESP32 lock. Owner, Admin and Staff use the
+back office for bookings, rooms and pricing, devices, activity logs, security alerts, reviews and revenue.
+
+Built on plain Java Servlet 4.0 / JSP 2.3 / EL 3.0 with custom tags (`WEB-INF/tags`) and EL functions
+(`WEB-INF/tld/smartstay.tld`). No JSTL, no frameworks, no CDN: everything runs offline.
 
 ---
 
-## Technology Stack
+## Technology stack
 
-- **Runtime & Language**: Java JDK 1.8 (Java SE 8)
-- **Application Server**: Apache Tomcat 9.0.113
+- **Runtime**: Java JDK 1.8, Apache Tomcat 9.0.113
 - **Database**: Microsoft SQL Server 2017+ / Express (`SmartStayDB`)
-- **Libraries (`lib/`)**:
-  - `sqljdbc4.jar` (Microsoft JDBC Driver for SQL Server)
-  - `jbcrypt-0.4.jar` (BCrypt password hashing)
-  - `gson-2.10.1.jar` (JSON serialization for charts and telemetry APIs)
-- **Frontend Architecture**:
-  - Custom responsive styling (`assets/css/app.css`) following the warm 7-color boutique palette (Espresso, Cocoa, Caramel, Latte, Cream, Sand, Milk).
-  - Bootstrap 5.3 (local vendor bundle) + Bootstrap Icons.
-  - Zero third-party runtime frameworks or extension dependencies; 100% scriptless JSP views utilizing custom JSP tags (`WEB-INF/tags/`) and EL functions (`WEB-INF/tld/smartstay.tld`).
+- **Libraries (`lib/`)**: `sqljdbc4.jar`, `jbcrypt-0.4.jar`, `gson-2.8.9.jar`, `javax.mail-1.6.2.jar` +
+  `activation-1.1.1.jar` (e-mail), `org.eclipse.paho.client.mqttv3-1.2.5.jar` (MQTT)
+- **Frontend**: Bootstrap 5.3.3 and Bootstrap Icons (local), Chart.js 4.4.4, Flatpickr 4.6.13, vanilla JS.
+  New styles live in `assets/css/modern-ui.css` and `assets/css/animations.css` (`ss-*` BEM classes,
+  7-colour Warm Luxury palette). `app.css` is legacy.
 
 ---
 
-## How to Run
+## How to run
 
-### 1. Database Setup
-Ensure Microsoft SQL Server is running on `localhost:1433`. Execute the database migration and seed scripts:
+### 1. Database
+SQL Server on `localhost:1433`. Run the scripts in order (take a backup first if the database already
+has data):
 ```powershell
-# In PowerShell:
 sqlcmd -S localhost -U sa -P 12345 -C -i sql/01_schema.sql
 sqlcmd -S localhost -U sa -P 12345 -C -i sql/02_seed_data.sql
+sqlcmd -S localhost -U sa -P 12345 -C -i sql/03_round2_migration.sql
 ```
+`03_round2_migration.sql` is idempotent (safe to run again): it gives Admin all Owner permissions and
+clears the seeded sample snapshot paths.
 
-### 2. Database Connection Configuration
-Verify `src/java/db.properties` (or copy from `src/java/db.properties.sample`):
+### 2. Connection settings
+`src/java/db.properties` (copy from `db.properties.sample`):
 ```properties
 db.url=jdbc:sqlserver://localhost:1433;databaseName=SmartStayDB;encrypt=false
 db.user=sa
 db.password=12345
 ```
 
-### 3. Build & Deploy with Ant / NetBeans
-Using Apache Ant with JDK 1.8:
+### 3. Build
 ```powershell
-# Set Java Home to JDK 1.8
 $env:JAVA_HOME = "C:\Program Files\Java\jdk1.8.0_202"
-
-# Compile and package WAR
-ant dist
-
-# Deploy to Tomcat webapps (e.g. ROOT.war or SmartStay.war)
-Copy-Item "dist\SmartStay.war" "C:\path-to-tomcat\webapps\ROOT.war"
+& "C:\Program Files\NetBeans-13\netbeans\extide\ant\bin\ant.bat" -f build.xml dist
+Copy-Item "dist\SmartStay.war" "C:\path-to-tomcat\webapps\SmartStay.war"
 ```
+Or open the project in NetBeans and press Run.
 
 ### 4. Start Tomcat
 ```powershell
 & "C:\path-to-tomcat\bin\catalina.bat" run
 ```
-Access the application at: **`http://localhost:8080/`**
+Open `http://localhost:8080/SmartStay/` (or `/` when deployed as ROOT).
+
+### Demo mode
+`web/WEB-INF/web.xml` has the context-param `demo.mode` (default `true`). It enables the **DEMO** tab
+(virtual clock and payment simulation). Set it to `false` for a production-like run: `/demo/*` then
+returns 404 and the tab disappears.
 
 ---
 
-## Demo Accounts
+## Demo accounts
 
-All demo accounts use password: **`12345`**
+All demo accounts use the password **`12345`**.
 
-| Role | Email | Password | Permissions & Scope |
-|------|-------|:--------:|---------------------|
-| **Owner** | `owner@gmail.com` | `12345` | Full administrative authority, financial revenue reports, user accounts, system configuration. |
-| **Admin 1** | `admin1@gmail.com` | `12345` | Booking operations, walk-in reservations, refund management, device management, security alerts, review moderation. |
-| **Admin 2** | `admin2@gmail.com` | `12345` | Operations manager, room slot pricing, alerts handling. |
-| **Staff 1** | `staff1@gmail.com` | `12345` | Housekeeping staff portal, room cleaning task completion. |
-| **Staff 2** | `staff2@gmail.com` | `12345` | Housekeeping staff portal. |
-| **Guest 1** | `guest1@smartstay.local` | `12345` | Room browsing, multi-slot reservation, simulated checkout, door PIN display. |
-| **Guest 2–35** | `guest2@smartstay.local` ... `guest35@smartstay.local` | `12345` | Seed guest accounts with realistic booking, access log, and review histories. |
+| Role | Email | What to show |
+|---|---|---|
+| Owner | `owner@gmail.com` | Everything; the Owner account is protected from edits by others |
+| Admin | `admin1@gmail.com`, `admin2@gmail.com` | Same permissions as Owner (dashboard, bookings, rooms, devices, logs, alerts, reviews, revenue, users) |
+| Staff | `staff1@gmail.com`, `staff2@gmail.com` | Cleaning tasks only (`/staff/assignments`); "Mark as clean" asks to tap again within 3 s |
+| Guest | `guest1@smartstay.local` … `guest35@smartstay.local` | Booking, payment, door PIN, My bookings, reviews |
 
 ---
 
-## End-to-End Demo Script
+## 5-minute demo script
 
-Follow this 5-minute walkthrough to demonstrate the complete guest lifecycle and administrative supervision:
+Two browser windows help: one normal window for the guest, one private window for the admin.
 
-### Step 1: Guest Room Discovery & Time-Slot Booking
-1. Open `http://localhost:8080/` in a browser.
-2. Click **Browse Rooms** or navigate to `/rooms`.
-3. View the 7-day strip and use the multi-slot selector to pick time slots (e.g., **S1 (06:00–12:00)** and **S2 (12:00–18:00)**). Note the 10% multi-slot consecutive discount calculation.
-4. Click **View Room & Availability** on *Butter Beige* (Room 101).
-5. On the Room Detail page, inspect the photo gallery with full lightbox view, room overview, house rules, and verified guest reviews.
-6. Select 1 or 2 slots on the availability matrix. The sticky summary card computes the original amount, discount percentage, and total due.
-7. Click **Continue to Payment** (if prompted, login with `guest1@smartstay.local` / `12345`).
+1. **Book (guest)** – Log in as `guest1@smartstay.local`. Open **Rooms**, pick a room, choose one or
+   more slots in the slot picker (2 or more slots get the combo discount shown in the booking bar).
+   Choose a date at least 3 days ahead so the booking is refundable. Press **Continue**.
+2. **Pay** – On the checkout page the QR code and a 5-minute countdown appear (the slots stay held for
+   15 minutes). Open the **DEMO** tab on the right edge and press **Simulate successful transfer**. The page
+   switches to the payment result within a few seconds (WebSocket, with polling as a fallback).
+3. **PIN** – The result page shows the Digital Keycard: the 6-digit door PIN, a copy button and the
+   validity window (check-in to check-out). The PIN also appears under **My bookings → booking detail**.
+4. **Time travel** – Open the **DEMO** tab again, select the booking and press, in order:
+   - **15 min before check-in** – the stay is about to start; the booking still shows Confirmed.
+   - **Check-in now** – the stay starts. The booking shows Checked in once the PIN is used at the door (or on
+     the next jump, which checks the guest in first so the stay is not a no-show).
+   - **15 min before check-out** – the check-out reminder job runs (e-mail failures do not stop the demo).
+   - **Check-out now** – the booking completes and the room changes to "Needs cleaning". The admin can
+     then assign the cleaning under **Assignments**, and staff marks it clean.
+   Each jump asks for confirmation and says how many other future bookings the global clock affects.
+   A banner "Simulated time dd/MM/yyyy HH:mm · Reset" stays on top while the clock is moved.
+5. **Watch the back office (admin window)** – Log in as `admin1@gmail.com`:
+   - **Dashboard**: KPIs, "Needs attention" and the room tiles update live.
+   - **Bookings**: the booking moves through the status tabs.
+   - **Security → Activity logs**: door access and motion events, grouped by day; click a row for details.
+   - **Security → Alerts**: Acknowledge, then Resolve an alert in place; the header badge count drops.
+6. **Cancellation policy** – As the guest, open a booking whose first slot is more than 48 hours away and
+   cancel it: the full amount is marked for refund (admin sees "Refund pending"). A booking starting in
+   less than 48 hours shows "Non-refundable" before payment and in the cancel dialog.
+7. **Reset** – Press **Reset** in the banner or the DEMO tab. The clock returns to real time; data changes
+   made during the demo stay (time travel is forward-only and is not an undo).
 
-### Step 2: Payment Simulation (Mock PayOS / VietQR Napas 247)
-1. On the Checkout page (`/mock-payos/checkout`), view the 4-step stepper (Step 3 active).
-2. The page renders an authentic **VietQR** code, beneficiary account details, payment order code, and a live 15-minute countdown progress bar.
-3. In the bottom-right developer dock, expand the **Sandbox &middot; Simulate bank transfer** panel.
-4. Click **Simulate successful transfer**.
-5. The payment status transitions to `PAID` via WebSocket/polling, triggering an automated redirect to the Payment Result page within 2 seconds.
-
-### Step 3: Self Check-in Door PIN & Access Instructions
-1. On `/guest/payment/result`, observe the active Step 4 (**Get PIN**).
-2. The owning guest receives their unique **6-digit main entrance door PIN** (e.g., `529 184`), displayed in large monospaced format with a one-click **Copy PIN** button and its exact validity period (`valid from ... until ...`).
-3. Follow the 3-step entrance guide:
-   - *Step 1*: Main building ground floor keypad.
-   - *Step 2*: Type 6-digit PIN + `#` key to disengage the electromagnetic lock.
-   - *Step 3*: Key locker at Room 101 to collect the private room key.
-4. Test the **Print Access Pass** button to verify print-friendly `@media print` styling (clean monochrome voucher with navigation stripped).
-
-### Step 4: Guest Portal Verification
-1. Click **My Bookings** (`/guest/bookings`).
-2. Verify that the new booking is listed as `CONFIRMED` with payment `PAID`, room details, and slot window.
-3. Click the booking detail chevron to inspect the comprehensive breakdown.
-
-### Step 5: Admin Dashboard & Operations
-1. Click **Logout**, then log in as Admin: `admin1@gmail.com` / `12345`.
-2. Navigate to `/admin/dashboard`.
-3. Inspect the operational KPI cards:
-   - *Check-ins Today*, *Check-outs Today*, *Pending Cleaning Tasks*, and *Open Alerts by Severity*.
-4. Switch between the 3 dashboard tabs:
-   - **Occupancy & Hardware**: Real-time room states (Available, Occupied, Needs Cleaning, Maintenance) and IoT lock device status counts (derived consistently from device last-seen heartbeats).
-   - **Bookings & Revenue**: Today's bookings breakdown and the 7-day revenue bar chart.
-   - **Security & Alerts**: Alerts-by-type horizontal bar list with severity color tokens and numbers.
-
-### Step 6: Security Alert Lifecycle Management
-1. Go to **Security & Devices > Alerts** (`/admin/alerts`).
-2. Locate any alert with status `NEW` (e.g., `DEVICE_OFFLINE` or `MOTION_NIGHT_DOOR`).
-3. Click the **Acknowledge** button (CSRF-protected POST). The status updates to `ACKNOWLEDGED` and records the acting administrator's name.
-4. Click **Resolve**. A modal prompts for an optional resolution note (e.g., "Network gateway restarted; lock telemetry verified").
-5. Click **Confirm Resolve**. The alert lifecycle transitions to `Closed` (Resolved) and the navbar alert badge count updates immediately.
-6. Click **Details** to review the full event timestamp, device ID, and room location.
-
-### Step 7: Booking Management & Refund Processing
-1. Navigate to **Operations > Bookings** (`/admin/bookings`).
-2. Notice the "Date & Slots" column (`S1+S2 &middot; 06:00–18:00`), status tab counts, and tooltips for "Held slots" and "Early CI".
-3. Filter by status `CANCELLED` or locate a booking with payment status `REFUND_PENDING`.
-4. Click **Mark refunded**. In the confirmation modal, enter the transfer reference and confirm. The payment transitions to `REFUNDED` and writes an audit entry.
-
-### Step 8: Device Management & Room Scope
-1. Navigate to **Security & Devices > Devices** (`/admin/devices`).
-2. Note the clear scope distinction: Room `- (Shared)` indicates the common lobby/entrance lock, while numbered rooms represent private room locks.
-3. Click **Regenerate API Key** on a device. Confirm the security warning modal to view the new 32-character API key in the one-time reveal dialog with a copy button.
-4. Click **Delete** on an inactive device. A confirmation modal requires typing the device ID before enabling the confirm action.
-
-### Step 9: Financial Revenue Report
-1. Navigate to **Management > Revenue** (`/admin/reports/revenue`).
-2. Verify default pre-filled 30-day date range and KPI cards: *Total revenue, Paid bookings, Average per booking, Occupancy rate, Change vs previous period*.
-3. Note that cancelled bookings and refunded payments are strictly excluded from totals.
-4. Inspect the timeline chart rendered in warm boutique brown tones with compact formatted currency ticks (`250k / 500k ₫`).
-5. Switch to the **Detailed Table** tab to review bucketed records, and toggle **Hide zero-revenue rows** to inspect active billing days.
+Optional extras: **Revenue** (quick ranges 7 / 30 / 90 days, Export CSV), **Reviews** (hide a review with a
+reason), **Rooms → Slots & pricing**, **Staff** (assign the room to `staff1@gmail.com`, log in as staff, mark it clean).
 
 ---
 
-## Simulated Components
+## Cancellation policy
 
-To ensure complete portability without requiring external merchant contracts or physical IoT microcontroller testbenches, the following components are simulated in software:
+- Free cancellation with a **100% refund until 48 hours before the first booked slot**.
+- After that, or for bookings made less than 48 hours before the first slot, the booking is
+  **non-refundable**; guests see this before paying.
+- Refunds are marked "Refund pending" for the admin, who confirms the bank transfer ("Mark refunded").
 
-1. **PayOS / VietQR Banking Gateway**:
-   - Simulated via `MockPaymentServlet` (`/mock-payos/checkout`).
-   - Generates authentic VietQR payment representations, QR download payloads, and beneficiary account details.
-   - Simulates gateway webhook notifications, real-time WebSocket payment detection, and automated 15-minute timeout hold expirations.
-   - Developer sandbox dock allows instant testing of successful transfers and transaction failures.
+---
 
-2. **MQTT IoT Door Locks & Physical Sensors**:
-   - ESP32 digital keypad door locks and PIR motion sensors are modeled via `DeviceService`, `MqttService`, and `SchedulerJobs`.
-   - Simulated bidirectional telemetry captures keypad unlock attempts, wrong PIN retries, and motion distance readings with realistic surveillance snapshots (`/assets/images/snapshots/`).
-   - The scheduled background job (`job/FastCloseJobWorker`) automatically marks devices offline if their heartbeat timestamp exceeds 5 minutes, creates single `DEVICE_OFFLINE` alerts without duplicates, and automatically releases expired room holds.
+## What is simulated and what is real
+
+| Part | Simulated or real |
+|---|---|
+| PayOS / VietQR payment | **Simulated** (sandbox): `/mock-payos/checkout`, success or failure from the DEMO tab or the sandbox buttons. No money moves. |
+| Business clock | **Virtual** when moved from the DEMO tab (`ClockService`): check-in/out, no-shows, PIN validity, reminders, dashboard "today". Forward-only; Reset returns to real time. |
+| Payment and hold deadlines, device heartbeats, ESP32 anti-replay, access log timestamps, sessions | **Real** time, always (see `docs/time-inventory.md`). |
+| ESP32 door lock and motion sensor | **Real** hardware: the lock calls `/api/iot/access/verify` with its API key; the PIN is checked in Java with the virtual clock. Motion events arrive through `/api/iot/motion-events`. |
+| E-mails | Real SMTP when configured; failures are logged and never block bookings or jobs. |
+| Snapshots | No sample images are seeded; a snapshot is shown only when the device uploads one. |
+
+---
+
+## Tests
+
+```powershell
+node web/assets/js/booking-detail.test.js
+node web/assets/js/mockpay.test.js
+node web/assets/js/cancel-policy.test.js
+node web/assets/js/room-search.test.js
+node web/assets/js/tap-confirm.test.js
+```
+Java unit tests are in `tools/` (plain `main` methods, compile against `build/web/WEB-INF/classes` with
+JDK 1.8), for example `ClockServiceTest`, `CancellationPolicyTest`, `DemoTimeTest`, `RevenueReportTest`.
+QA notes and the permission matrix: `docs/r12-qa.md`.

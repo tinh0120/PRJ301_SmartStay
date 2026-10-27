@@ -11,7 +11,7 @@
                             <i class="bi bi-person-plus-fill"></i>
                         </span>
                     </div>
-                    <h1 class="auth-title text-center mb-2">Create an account</h1>
+                    <h1 class="ss-serif auth-title text-center mb-2">Create an account</h1>
                     <p class="auth-subtitle text-center mb-4">Register as a guest to book rooms and receive digital door PINs.</p>
 
                     <t:if test="${not empty globalError}">
