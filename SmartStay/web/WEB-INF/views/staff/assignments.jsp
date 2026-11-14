@@ -34,7 +34,7 @@
     <%-- V3: one task per card, large tap targets, quiet colours (only "To do" stands out).
          The filter script hooks are unchanged: #filterPillsGroup .filter-pill[data-filter],
          #assignmentSearchInput, .assignment-row[data-status][data-search], #clientNoMatchRow. --%>
-    <div class="staff-portal pb-4">
+    <div class="staff-portal pb-4" id="staffTaskList" data-staff-id="${not empty sessionScope.authUser ? sessionScope.authUser.userId : ''}">
         <div class="ss-page-header">
             <div>
                 <h1 class="ss-page-header__title">My cleaning tasks</h1>
@@ -164,6 +164,16 @@
             if (searchInput) {
                 searchInput.addEventListener('input', applyFilters);
             }
+
+            // Auto cleaning task: a check-out just assigned a room to me -> reload so the new card shows
+            var list = document.getElementById('staffTaskList');
+            var myId = list ? list.getAttribute('data-staff-id') : '';
+            window.addEventListener('smartstay:realtime', function (ev) {
+                var d = ev.detail || {};
+                if (d.event === 'ASSIGNMENT_CREATED' && myId && String(d.staffId) === myId) {
+                    window.location.reload();
+                }
+            });
         });
     </script>
 </t:layout>

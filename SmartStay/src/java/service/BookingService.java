@@ -1182,6 +1182,9 @@ public class BookingService {
                 conn.commit();
                 websocket.RealtimeWebSocketEndpoint.broadcastBookingUpdated(bookingCode, "CHECKED_OUT", roomId);
                 websocket.RealtimeWebSocketEndpoint.broadcastRoomStatusChanged(roomId, "", "NEEDS_CLEANING");
+                MqttService.notifyCheckout(roomId);
+                // Cleaning task straight to the default staff (never throws, separate transaction)
+                new AssignmentService().autoAssignAfterCheckout(roomId, adminUserId);
             } catch (Exception e) {
                 conn.rollback();
                 LOGGER.log(Level.SEVERE, "Database error during check-out for booking " + bookingId, e);

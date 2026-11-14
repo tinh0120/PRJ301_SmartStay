@@ -34,6 +34,91 @@ public class AssignmentService {
     public long createAssignment(long adminUserId, long staffId, long roomId,
                                  LocalDateTime shiftStart, LocalDateTime shiftEnd,
                                  String note, String ip) throws SQLException {
+        return createAssignmentInternal(adminUserId, staffId, roomId, shiftStart, shiftEnd, note, true);
+    }
+
+    /**
+     * Auto cleaning task, called right AFTER a check-out has committed (BookingService.checkOutManual,
+     * SchedulerJobs.autoCheckout). The room's task goes to AppConstants.AUTO_CLEANING_STAFF_EMAIL with a
+     * shift from the current (virtual) minute for AUTO_CLEANING_SHIFT_MINUTES, so it shows at once on
+     * the staff "My cleaning tasks" page. The staff overlap rule is skipped here: several rooms can be
+     * checked out at the same time and all of them go to the same person.
+     * Never throws: a failure is logged and the admin can still assign the room by hand.
+     *
+     * @param actorUserId the admin who checked the booking out, or null for the scheduler
+     */
+    public void autoAssignAfterCheckout(long roomId, Long actorUserId) {
+        String email = util.AppConstants.AUTO_CLEANING_STAFF_EMAIL;
+        if (email == null || email.trim().isEmpty()) {
+            return;
+        }
+        try {
+            User staff = userDao.findByEmail(email.trim());
+            if (staff == null || staff.getUserId() == null
+                    || !"STAFF".equalsIgnoreCase(staff.getRoleName()) || !"ACTIVE".equalsIgnoreCase(staff.getStatus())) {
+                LOGGER.warning("Auto cleaning task skipped: " + email + " is not an active staff account.");
+                return;
+            }
+
+            Long assignedBy = actorUserId;
+            String roomNumber = "";
+            try (Connection conn = DBUtil.getConnection()) {
+                // One open task per room is enough (e.g. the admin already assigned it)
+                String openSql = "SELECT COUNT(*) FROM STAFF_ASSIGNMENT WHERE room_id = ? AND status = 'ASSIGNED'";
+                try (PreparedStatement ps = conn.prepareStatement(openSql)) {
+                    ps.setLong(1, roomId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next() && rs.getInt(1) > 0) {
+                            return;
+                        }
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement("SELECT room_number FROM ROOM WHERE room_id = ?")) {
+                    ps.setLong(1, roomId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            roomNumber = rs.getString(1);
+                        }
+                    }
+                }
+                if (assignedBy == null) {
+                    // STAFF_ASSIGNMENT.assigned_by is NOT NULL: the scheduler acts for the Owner (else an Admin)
+                    String ownerSql = "SELECT TOP 1 u.user_id FROM APP_USER u JOIN ROLE r ON u.role_id = r.role_id "
+                            + "WHERE r.role_name IN ('OWNER', 'ADMIN') "
+                            + "ORDER BY CASE r.role_name WHEN 'OWNER' THEN 0 ELSE 1 END, u.user_id";
+                    try (PreparedStatement ps = conn.prepareStatement(ownerSql);
+                         ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            assignedBy = rs.getLong(1);
+                        }
+                    }
+                }
+            }
+            if (assignedBy == null) {
+                LOGGER.warning("Auto cleaning task skipped: no Owner/Admin account to record as assigner.");
+                return;
+            }
+
+            LocalDateTime start = util.ClockService.now().withSecond(0).withNano(0);
+            LocalDateTime end = start.plusMinutes(util.AppConstants.AUTO_CLEANING_SHIFT_MINUTES);
+            long assignmentId = createAssignmentInternal(assignedBy, staff.getUserId(), roomId, start, end,
+                    "Auto-assigned after check-out", false);
+            LOGGER.info("Auto cleaning task #" + assignmentId + " for room " + roomNumber + " -> " + staff.getFullName());
+
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("assignmentId", assignmentId);
+            data.put("staffId", staff.getUserId());
+            data.put("roomId", roomId);
+            data.put("roomNumber", roomNumber);
+            websocket.RealtimeWebSocketEndpoint.broadcastEvent("ASSIGNMENT_CREATED", data);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Auto cleaning task failed for room #" + roomId + " (assign it by hand)", e);
+        }
+    }
+
+    private long createAssignmentInternal(long adminUserId, long staffId, long roomId,
+                                          LocalDateTime shiftStart, LocalDateTime shiftEnd,
+                                          String note, boolean checkOverlap) throws SQLException {
 
         if (shiftStart == null || shiftEnd == null) {
             throw new IllegalArgumentException("Shift start and end times are required.");
@@ -76,7 +161,7 @@ public class AssignmentService {
                 }
 
                 // 3. Overlap check for staff
-                if (assignmentDao.hasOverlap(conn, staffId, shiftStart, shiftEnd, null)) {
+                if (checkOverlap && assignmentDao.hasOverlap(conn, staffId, shiftStart, shiftEnd, null)) {
                     throw new IllegalStateException("Staff already has an overlapping active assignment for this shift window.");
                 }
 

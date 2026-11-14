@@ -81,6 +81,38 @@ public class MqttService {
     }
 
     /**
+     * Shows "Checked out / Thank you!" on the LCD of every active door lock that serves the room
+     * (locks bound to the room plus shared entrance locks with no room). Silent: no buzzer.
+     * Runs in the background so a slow broker never delays the check-out itself.
+     */
+    public static void notifyCheckout(final long roomId) {
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String sql = "SELECT device_id, api_key_hash FROM DEVICE "
+                        + "WHERE device_type = 'SMART_LOCK' AND is_active = 1 "
+                        + "AND api_key_hash IS NOT NULL AND (room_id = ? OR room_id IS NULL)";
+                try (java.sql.Connection conn = util.DBUtil.getConnection();
+                     java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setLong(1, roomId);
+                    try (java.sql.ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            String hash = rs.getString("api_key_hash").trim().toLowerCase();
+                            if (!hash.isEmpty()) {
+                                publishCommand(rs.getString("device_id"), "CHECKOUT", hash);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(Level.WARNING, "Could not send check-out notice for room #" + roomId, e);
+                }
+            }
+        }, "mqtt-checkout-notice");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /**
      * Publishes a buzzer alarm command to the specified IoT device topic.
      *
      * @param deviceId target device ID (e.g. MAIN_DOOR_LOCK_01)
