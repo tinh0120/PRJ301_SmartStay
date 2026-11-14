@@ -378,6 +378,16 @@ public final class SchedulerJobs {
                 }
 
                 conn.commit();
+                for (AutoCheckoutBookingInfo b : bookings) {
+                    service.MqttService.notifyCheckout(b.roomId);
+                }
+                // Cleaning task straight to the default staff (never throws, after the commit)
+                if (!bookings.isEmpty()) {
+                    service.AssignmentService auto = new service.AssignmentService();
+                    for (AutoCheckoutBookingInfo b : bookings) {
+                        auto.autoAssignAfterCheckout(b.roomId, null);
+                    }
+                }
             } catch (SQLException e) {
                 conn.rollback();
                 LOGGER.log(Level.SEVERE, "Scheduler AutoCheckout transaction rolled back", e);

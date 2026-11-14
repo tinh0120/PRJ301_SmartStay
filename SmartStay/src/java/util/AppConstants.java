@@ -93,4 +93,13 @@ public final class AppConstants {
 
     /** config_key: SIMULATOR_ENABLED */
     public static final boolean SIMULATOR_ENABLED = true;
+
+    /**
+     * Auto cleaning task: right after a check-out (manual or automatic) the room's cleaning task goes
+     * straight to this staff account (seed: Sam Wilson). Empty string = off, the admin assigns by hand.
+     */
+    public static final String AUTO_CLEANING_STAFF_EMAIL = "staff1@gmail.com";
+
+    /** Length of the auto cleaning shift, starting at the (virtual) check-out minute. */
+    public static final int AUTO_CLEANING_SHIFT_MINUTES = 120;
 }
